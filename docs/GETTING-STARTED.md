@@ -136,6 +136,12 @@ for you, identically across all attendees.
    the GitHub and Google Cloud auths above).
 5. Skip to **Step 2: Set Up GitHub Access** below — except gh is
    already authenticated, so you can skip Step 2 entirely.
+6. **For local-dev work** (running the FastAPI app, iterating on
+   migrations, etc.): see [`docs/LOCAL-DEV.md`](LOCAL-DEV.md). It
+   covers the three-context `DATABASE_URL` model and the Neon
+   dev-branch flow you'll use for local iteration. **Do not point
+   local dev at production** — `LOCAL-DEV.md` documents the footgun
+   to avoid.
 
 The container runs `scripts/setup-solo-mode.sh` automatically as
 `postCreateCommand`, so the pre-push hook is already active and your
