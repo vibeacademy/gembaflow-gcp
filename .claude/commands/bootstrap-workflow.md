@@ -234,6 +234,74 @@ Update CLAUDE.md with:
 - Team/org information
 - Any final configuration
 
+### 7. Commit and ship the bootstrap output
+
+By this point you've accumulated **a lot** of uncommitted output across
+the bootstrap pipeline (`/research`, `/jtbd`, `/positioning`,
+`/bootstrap-product`, `/bootstrap-architecture`, `/bootstrap-agents`,
+plus this phase's CLAUDE.md edits). None of the bootstrap commands
+commit on your behalf — that's intentional, so you can review the
+output before it lands. But leaving it uncommitted creates two real
+problems:
+
+1. **`/work-ticket`'s pre-flight will catch it.** The first time you
+   try to pick up a real ticket, the worker's pre-push hook trips on
+   the dirty working tree. You then have to recover with a Quick Fix
+   PR — exactly what this step is here to prevent you from having to
+   discover the hard way.
+2. **The bootstrap output gets entangled with your first feature
+   commit.** Every `feature/issue-*` branch from `main` would carry
+   the bootstrap diff alongside the actual feature code, making the
+   review messy and the PR diff misleading.
+
+**Ship the bootstrap output as a single Quick Fix PR (no linked ticket)
+before starting any other work.** Quick Fix Protocol applies — branch
++ commit + PR, no ticket ceremony, since this is content/config not a
+tracked feature. From your repo root:
+
+```bash
+# Make sure you're on main with no other in-flight changes
+git status   # should show ONLY bootstrap-output files
+
+# Branch with a clear name; date suffix avoids collisions on re-bootstrap
+git checkout -b content/bootstrap-output-$(date +%Y-%m-%d)
+
+# Stage everything bootstrap created — adjust if your stack diverged
+git add CLAUDE.md docs/ .claude/agents/ .claude/PROJECT.md
+
+# Conventional commit; replace <product-name> with what you locked in
+# during /bootstrap-product (the value sitting in CLAUDE.md right now).
+git commit -m "chore(config): initial <product-name> bootstrap"
+
+# Push and open the PR. Mark it explicitly as Quick Fix.
+git push -u origin HEAD
+gh pr create \
+    --title "chore(config): initial <product-name> bootstrap" \
+    --body "Quick fix — no linked ticket. All bootstrap pipeline output (research, PRD, roadmap, architecture, agents, project config) in one commit." \
+    --base main
+```
+
+A couple of details worth knowing:
+
+- **Single commit vs phase-by-phase:** the framework prescribes a
+  single commit for simplicity. If you want phase-by-phase attribution,
+  you can split into multiple commits within the same PR — but keep
+  the PR singular. Multi-PR bootstrap is rejected — see
+  CLAUDE.md "Quick Fix Protocol" + the trunk-based development rule.
+- **`Closes #N` is NOT applicable** — this is a Quick Fix PR with no
+  linked ticket. Don't add a `Closes #` line; the PR body's "Quick fix
+  — no linked ticket" sentence is the canonical marker.
+- **Don't move any board items.** There's no ticket to move. The
+  Quick Fix flow specifically says skip board moves (CLAUDE.md → Quick
+  Fix Workflow step 5).
+- **Branch protection (Step 3) means you cannot push directly to
+  `main`.** This step's PR is how the bootstrap output reaches `main`
+  — through the same review/merge gate every other change uses.
+
+After this lands, `main` has a clean baseline: bootstrap output in
+one PR, your first feature ticket starts from a tidy state, and
+`/work-ticket`'s pre-flight passes on the first try.
+
 ## Pre-Flight Checklist
 
 Before running this phase, ensure you have:

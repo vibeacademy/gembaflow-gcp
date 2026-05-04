@@ -27,11 +27,24 @@ Before any work, verify the following. STOP and report if any check fails.
 - Bug fixes found during development (not from a ticket)
 - Content or copy updates (data files, presets, text changes)
 - Config tweaks (linter rules, CI fixes, dependency bumps)
+- **Bootstrap-pipeline output PR #1** — after running `/research` →
+  `/jtbd` → `/positioning` → `/bootstrap-product` → `/bootstrap-architecture` →
+  `/bootstrap-agents` → `/bootstrap-workflow`, the accumulated config
+  + docs land as a single Quick Fix PR. See
+  `bootstrap-workflow.md` Step 7 for the exact `git`/`gh` sequence.
+- Session journal commits — same Quick Fix shape, no linked ticket
 - Any change the user explicitly requests without a ticket
 
 **Do NOT use this for feature work.** If the change introduces new behavior,
 touches more than 3 files, or takes longer than ~1 hour, create a ticket with
 `/create-ticket` and use `/work-ticket` instead.
+
+> **Note on the bootstrap exception:** the bootstrap-output PR routinely
+> touches 10+ files (research artifacts, PRD, roadmap, architecture,
+> agent specs, CLAUDE.md). That breaks the "≤3 files" guideline above
+> on purpose — bootstrap is a one-shot project-creation event, not
+> ongoing feature work. The "≤3 files" rule still holds for normal
+> Quick Fixes.
 
 ## Workflow
 
