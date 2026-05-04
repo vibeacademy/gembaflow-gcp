@@ -510,6 +510,15 @@ workflow consumes IS an Actions secret. The two stores are
 independent — set both if your fork ends up needing Claude Code
 in both Codespaces and CI.
 
+### Database access from a Codespace (local development)
+
+This guide covers production and CI-preview database paths. The third
+context — running the app from a Codespace against a per-developer
+Neon branch — is documented in its own file: [`docs/LOCAL-DEV.md`](LOCAL-DEV.md).
+Same architectural pattern as the Anthropic API key above (Codespaces
+secret store, not Actions secrets), with the canonical "do NOT set
+`PRODUCTION_DATABASE_URL` as a Codespaces secret" warning called out.
+
 ---
 
 ## Workshop: Lifecycle (Setup and Teardown)
