@@ -56,7 +56,7 @@ STUB
 make_fork() {
     local dir="$1"
     (
-        cd "$dir"
+        cd "$dir" || exit 1
         git init -q
         git checkout -q -b feature/install-evidence
         cat > pyproject.toml <<'EOF'
@@ -89,7 +89,7 @@ EOF
 run_installer() {
     local fork="$1"
     (
-        cd "$fork"
+        cd "$fork" || exit 1
         PATH="$fork/bin:$PATH" AGILE_FLOW_REF="$REF" bash "$SCRIPT" 2>&1
     )
 }
@@ -129,7 +129,7 @@ after_main=$(shasum -a 256 "$t1/app/main.py" | awk '{print $1}')
 
 assert "test2: re-run reports already-installed" "echo \"\$out2\" | grep -qF 'already installed'"
 assert "test2: app/main.py unchanged on re-run" "[[ '$before_main' == '$after_main' ]]"
-backup_count=$(ls "$t1"/app/main.py.bak.* 2>/dev/null | wc -l | tr -d ' ')
+backup_count=$(find "$t1/app" -maxdepth 1 -name 'main.py.bak.*' -type f 2>/dev/null | wc -l | tr -d ' ')
 assert "test2: re-run does not create extra backup" "[[ '$backup_count' == '1' ]]"
 
 # --- Test 3: customized main.py is preserved -------------------------------
