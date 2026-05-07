@@ -1,23 +1,28 @@
 """Tests for the per-PR evidence page.
 
-Two layers under test:
+Three layers under test:
 
-1. Router wiring — evidence routes mount only when ENVIRONMENT=preview.
-   The test DB is SQLite, so the framework "preview matches production"
-   probe is *expected* to report failure (different dialect) — that
-   failure is itself evidence that the probe does real work, not a bug.
+1. Helper wiring — `attach_evidence_routes` mounts evidence routes only
+   when settings.environment == "preview", reorders so the evidence `/`
+   wins against pre-existing `/` handlers, and is idempotent.
 
-2. Runner contract — `evaluate_sections` returns a list of dicts with
-   the documented shape, including `passed`, `observation`, `explanation`.
-   This is what the worker agent consumes via /healthz/evidence.
+2. Runner contract — `evaluate_sections` returns the documented shape
+   the worker agent consumes via /healthz/evidence.
 
-End-to-end validation that probes work against PostgreSQL happens on the
-preview deploy itself — see docs/EVIDENCE-PAGES.md.
+3. Defensive runner behavior — a probe that crashes is reported as
+   failed rather than propagating.
+
+End-to-end validation that probes work against PostgreSQL happens on
+the preview deploy itself (see docs/EVIDENCE-PAGES.md). The test DB is
+SQLite, so the framework "preview matches production" probe is
+*expected* to report failure on a dialect mismatch — that failure is
+itself evidence that the probe inspects the live connection.
 """
 
 from collections.abc import Generator
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -30,14 +35,14 @@ from app.evidence import (
     ProbeResult,
     evaluate_sections,
 )
-from app.main import create_app
+from app.evidence_integration import attach_evidence_routes
 
 
 def _preview_settings() -> Settings:
     """Build a Settings instance flagged as preview, bypassing validators.
 
     Validators would refuse the SQLite default URL outside dev. Tests
-    don't actually connect to Postgres — they exercise the routing and
+    don't actually connect to Postgres — they exercise routing and
     runner shape, so model_construct is appropriate here.
     """
     return Settings.model_construct(
@@ -47,11 +52,77 @@ def _preview_settings() -> Settings:
     )
 
 
+def _development_settings() -> Settings:
+    return Settings.model_construct(
+        environment="development",
+        database_url="sqlite://",
+        app_url="http://testserver",
+    )
+
+
+# --- Helper wiring --------------------------------------------------------
+
+
+def test_attach_mounts_routes_in_preview() -> None:
+    app = FastAPI()
+    attach_evidence_routes(app, _preview_settings())
+
+    paths = {getattr(route, "path", None) for route in app.router.routes}
+    assert "/" in paths
+    assert "/healthz/evidence" in paths
+
+
+def test_attach_is_noop_outside_preview() -> None:
+    app = FastAPI()
+    attach_evidence_routes(app, _development_settings())
+
+    paths = {getattr(route, "path", None) for route in app.router.routes}
+    assert "/" not in paths
+    assert "/healthz/evidence" not in paths
+
+
+def test_attach_is_idempotent() -> None:
+    app = FastAPI()
+    attach_evidence_routes(app, _preview_settings())
+    n_after_first = len(app.router.routes)
+    attach_evidence_routes(app, _preview_settings())
+    assert len(app.router.routes) == n_after_first
+
+
+def test_attach_reorders_so_evidence_root_wins_over_existing_home() -> None:
+    """Pre-existing `/` handlers should not shadow the evidence page in preview."""
+    from app.api.evidence import evidence_page
+
+    app = FastAPI()
+
+    @app.get("/")
+    def existing_home() -> dict:
+        return {"page": "user-home"}
+
+    attach_evidence_routes(app, _preview_settings())
+
+    evidence_idx = next(
+        i
+        for i, route in enumerate(app.router.routes)
+        if getattr(route, "endpoint", None) is evidence_page
+    )
+    existing_idx = next(
+        i
+        for i, route in enumerate(app.router.routes)
+        if getattr(route, "endpoint", None) is existing_home
+    )
+    assert evidence_idx < existing_idx
+
+
+# --- Helper integration via TestClient ------------------------------------
+
+
 @pytest.fixture(name="preview_client")
 def preview_client_fixture(session: Session) -> Generator[TestClient, None, None]:
-    """TestClient running an app built in preview mode."""
+    """TestClient running an app with evidence routes attached in preview mode."""
     settings = _preview_settings()
-    app = create_app(settings=settings)
+    app = FastAPI()
+    attach_evidence_routes(app, settings)
 
     def session_override() -> Generator[Session, None, None]:
         yield session
@@ -63,31 +134,10 @@ def preview_client_fixture(session: Session) -> Generator[TestClient, None, None
         yield client
 
 
-# --- Router wiring --------------------------------------------------------
-
-
-def test_evidence_not_mounted_in_development(client: TestClient) -> None:
-    """Default-env app does not expose `/healthz/evidence`."""
-    response = client.get("/healthz/evidence")
-    assert response.status_code == 404
-
-
-def test_root_serves_todos_in_development(client: TestClient) -> None:
-    """`/` is the todos home page in non-preview environments."""
-    response = client.get("/")
+def test_evidence_page_renders_in_preview(preview_client: TestClient) -> None:
+    response = preview_client.get("/")
     assert response.status_code == 200
-    # Todos home page should not contain the evidence-page banner copy.
-    assert "Preview verification" not in response.text
-
-
-def test_evidence_mounted_in_preview(preview_client: TestClient) -> None:
-    """Preview app mounts both routes."""
-    json_response = preview_client.get("/healthz/evidence")
-    assert json_response.status_code == 200
-
-    html_response = preview_client.get("/")
-    assert html_response.status_code == 200
-    assert "Preview verification" in html_response.text
+    assert "Preview verification" in response.text
 
 
 # --- Runner contract ------------------------------------------------------

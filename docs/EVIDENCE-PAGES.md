@@ -190,8 +190,23 @@ bash scripts/install-evidence-page.sh
 
 The installer is idempotent: running it twice changes nothing. It
 copies the runtime files (`app/evidence.py`, `app/api/evidence.py`,
-`templates/evidence.html`, the CSS additions, and `tests/test_evidence.py`)
-and patches `app/main.py` to use the `create_app(settings)` factory.
+`app/evidence_integration.py`, `templates/evidence.html`, the CSS
+additions, and `tests/test_evidence.py`) and adds two lines to
+`app/main.py`:
+
+```python
+from app.evidence_integration import attach_evidence_routes
+attach_evidence_routes(app)
+```
+
+`attach_evidence_routes` is a no-op outside `ENVIRONMENT=preview`, so
+production behavior is unchanged. The call is injected after the last
+`app.include_router(...)` line; if the installer cannot find a safe
+anchor (e.g. an unconventional `app/main.py` shape) it aborts with the
+two-line snippet to add manually rather than guess. After injecting,
+the installer runs a smoke test (`uv run python -c 'import app.main'`)
+and aborts non-zero if the resulting module fails to import — the
+install never silently leaves you in a worse state than it found you.
 See the script's header for details.
 
 ---
@@ -211,6 +226,7 @@ See the script's header for details.
 
 - [app/evidence.py](../app/evidence.py) — section list and starter probes
 - [app/api/evidence.py](../app/api/evidence.py) — route handlers
+- [app/evidence_integration.py](../app/evidence_integration.py) — `attach_evidence_routes` opt-in helper
 - [templates/evidence.html](../templates/evidence.html) — page template
 - [docs/EPHEMERAL-PR-ENVIRONMENTS.md](EPHEMERAL-PR-ENVIRONMENTS.md) — how preview deploys work
 - [.claude/skills/compose-evidence-page.md](../.claude/skills/compose-evidence-page.md) — turn ticket AC into probe sections

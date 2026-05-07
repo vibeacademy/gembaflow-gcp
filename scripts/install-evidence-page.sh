@@ -14,15 +14,22 @@
 #   3. Fetches the runtime files from this framework branch via curl:
 #        - app/evidence.py
 #        - app/api/evidence.py
+#        - app/evidence_integration.py
 #        - templates/evidence.html
 #        - tests/test_evidence.py
 #   4. Appends the evidence-page CSS block to static/style.css (only if
 #      the marker comment is absent).
-#   5. Replaces app/main.py with the create_app(settings) factory shape,
-#      after backing the original up. If app/main.py has been customized
-#      beyond the template, the script bails and writes the new file as
-#      app/main.py.evidence-template for the user to merge by hand.
-#   6. Prints next-steps for testing and committing.
+#   5. Adds a single-line opt-in to app/main.py:
+#        from app.evidence_integration import attach_evidence_routes
+#        attach_evidence_routes(app)
+#      The call is injected after the last `app.include_router(...)`
+#      line. It is preview-only at runtime, so production behavior is
+#      unchanged.
+#   6. Runs a smoke test (`uv run python -c 'import app.main'`) to
+#      confirm app/main.py still imports cleanly. The installer exits
+#      non-zero if it doesn't — installing into a state that breaks
+#      `uvicorn app.main:app` would be worse than not installing.
+#   7. Prints next-steps for testing and committing.
 #
 # Configuration (env vars):
 #   AGILE_FLOW_REF  — git ref to fetch files from. Defaults to `main`,
@@ -65,10 +72,12 @@ info "Fetching from ${REPO}@${REF}"
 
 # --- Idempotency check ---------------------------------------------------
 
-if [[ -f app/evidence.py && -f app/api/evidence.py ]]; then
-  color_green "✓ Evidence runtime already installed (app/evidence.py + app/api/evidence.py present)."
-  info "Nothing to do. If you want to refresh files from upstream, delete them first."
-  exit 0
+if [[ -f app/evidence.py && -f app/api/evidence.py && -f app/evidence_integration.py ]]; then
+  if grep -q "attach_evidence_routes" app/main.py; then
+    color_green "✓ Evidence runtime already installed (runtime files present and app/main.py wires them up)."
+    info "Nothing to do. If you want to refresh files from upstream, delete them first."
+    exit 0
+  fi
 fi
 
 # --- Fetch helper --------------------------------------------------------
@@ -88,6 +97,7 @@ Check that AGILE_FLOW_REF is set correctly and that the branch exists."
 
 fetch app/evidence.py app/evidence.py
 fetch app/api/evidence.py app/api/evidence.py
+fetch app/evidence_integration.py app/evidence_integration.py
 fetch templates/evidence.html templates/evidence.html
 fetch tests/test_evidence.py tests/test_evidence.py
 
@@ -116,42 +126,120 @@ else
   rm -f "$tmp_css"
 fi
 
-# --- Patch app/main.py ---------------------------------------------------
+# --- Wire app/main.py ----------------------------------------------------
+#
+# Add one import + one call to app/main.py. We inject after the last
+# `app.include_router(...)` line so the helper sees the user's full
+# router set when reordering routes. The call itself is preview-only at
+# runtime, so production behavior is unchanged.
 
-if grep -q "def create_app" app/main.py; then
-  info "skipped app/main.py (already uses create_app factory)"
+if grep -q "attach_evidence_routes" app/main.py; then
+  info "skipped app/main.py (already calls attach_evidence_routes)"
 else
   ts=$(date +%Y%m%d-%H%M%S)
   backup="app/main.py.bak.${ts}"
   cp app/main.py "$backup"
   info "backed up existing app/main.py → ${backup}"
 
+  # Find the last "app.include_router(" line. Allow leading whitespace
+  # (some forks indent under a factory) but require the variable to be
+  # `app` — anything else is too custom for a one-line injection.
+  last_router_line=$(grep -nE "^[[:space:]]*app\.include_router\(" app/main.py | tail -1 | cut -d: -f1 || true)
+
+  if [[ -z "$last_router_line" ]]; then
+    color_yellow "! Could not find an 'app.include_router(...)' call in app/main.py."
+    info "The installer needs that anchor to know where to attach evidence routes."
+    info "Add these two lines manually after your router setup, then re-run the installer:"
+    echo
+    echo "    from app.evidence_integration import attach_evidence_routes"
+    echo "    attach_evidence_routes(app)"
+    echo
+    fail "Aborted: no injection anchor in app/main.py (backup at ${backup})."
+  fi
+
+  # Inject:
+  #   - the import after the existing imports section (before any code)
+  #   - the call after the last include_router line
+  awk -v inject_line="$last_router_line" '
+    BEGIN { import_done = 0 }
+    {
+      print
+      # Insert import once, after the first non-import block ends.
+      # Specifically: after the last "from app." or "import app." line at
+      # the top of the file, the next non-comment, non-blank, non-import
+      # line is where we slot it in. We approximate by injecting just
+      # before the first non-import, non-blank, non-comment line.
+    }
+  ' app/main.py > /dev/null  # placeholder for awk syntax check
+
+  # Build the new file in two passes: first add the call, then add the import.
   tmp_main=$(mktemp)
-  curl -fsSL "${RAW_BASE}/app/main.py" -o "$tmp_main" || fail "Could not fetch app/main.py"
+  awk -v inject_line="$last_router_line" '
+    { print }
+    NR == inject_line {
+      print ""
+      print "attach_evidence_routes(app)"
+    }
+  ' app/main.py > "$tmp_main"
 
-  # Detect substantial divergence from the framework template. The pre-
-  # evidence template main.py is short and stylized; if the user has added
-  # routers, middleware, or lifespan hooks, we shouldn't clobber it.
-  divergence=0
-  if grep -qE "include_router\(" app/main.py; then
-    extra_routers=$(grep -c "include_router(" app/main.py || true)
-    # Template has 2 routers (health, todos). More than 2 → user has added.
-    if [[ "$extra_routers" -gt 2 ]]; then divergence=1; fi
-  fi
-  if grep -qE "app\.add_middleware|app\.middleware|lifespan=" app/main.py; then
-    divergence=1
-  fi
+  # Add the import. Find a sensible spot: after the last existing
+  # `from app.` or `import` line in the top-of-file imports block. If we
+  # cannot find one, prepend.
+  last_import_line=$(awk '
+    /^(from |import )/ { last = NR }
+    !/^(from |import |#|[[:space:]]*$|""")/ && last { exit }
+    END { print last }
+  ' "$tmp_main")
 
-  if [[ "$divergence" -eq 1 ]]; then
-    mv "$tmp_main" app/main.py.evidence-template
-    color_yellow "! app/main.py looks customized; not overwriting."
-    info "wrote app/main.py.evidence-template — merge it into app/main.py by hand."
-    info "Key change: wrap the FastAPI() construction in a create_app(settings) factory"
-    info "and conditionally include app.api.evidence.router when settings.environment == 'preview'."
+  tmp_main2=$(mktemp)
+  if [[ -n "$last_import_line" ]]; then
+    awk -v line="$last_import_line" '
+      { print }
+      NR == line {
+        print "from app.evidence_integration import attach_evidence_routes"
+      }
+    ' "$tmp_main" > "$tmp_main2"
   else
-    mv "$tmp_main" app/main.py
-    info "wrote app/main.py (factory shape; original saved at ${backup})"
+    {
+      echo "from app.evidence_integration import attach_evidence_routes"
+      cat "$tmp_main"
+    } > "$tmp_main2"
   fi
+
+  mv "$tmp_main2" app/main.py
+  rm -f "$tmp_main"
+  info "injected attach_evidence_routes import + call into app/main.py"
+fi
+
+# --- Smoke test ----------------------------------------------------------
+#
+# Confirm that app/main.py imports cleanly. If it doesn't, the install
+# left the user in a worse state than it found them — refuse to declare
+# success.
+
+info "running post-install smoke test (importing app.main)..."
+smoke_log=$(mktemp)
+if uv run --quiet python -c "import app.main" 2>"$smoke_log"; then
+  info "✓ app/main.py imports cleanly"
+  rm -f "$smoke_log"
+else
+  echo
+  color_red "✗ Smoke test failed — app/main.py does not import cleanly."
+  echo "Output:"
+  cat "$smoke_log"
+  rm -f "$smoke_log"
+  echo
+  info "The most common cause is an unconventional app/main.py shape that"
+  info "the installer's regex injection didn't handle. Inspect the diff:"
+  echo
+  echo "    git diff app/main.py"
+  echo
+  info "and adjust by hand. The two lines that must be present are:"
+  echo
+  echo "    from app.evidence_integration import attach_evidence_routes"
+  echo "    attach_evidence_routes(app)"
+  echo
+  fail "Aborted: app/main.py does not import."
 fi
 
 # --- Done ----------------------------------------------------------------
@@ -166,23 +254,20 @@ Next steps:
 
        uv run pytest
 
-     You should see test_evidence.py contributing 8 new passing tests.
+     You should see test_evidence.py contributing several new passing tests.
 
   2. Review the changes:
 
        git status
        git diff
 
-  3. If app/main.py.evidence-template was written, merge it into app/main.py
-     by hand, then delete the template file.
-
-  4. Commit and open a PR per your normal workflow:
+  3. Commit and open a PR per your normal workflow:
 
        git add app/ templates/ static/ tests/
        git commit -m "feat(evidence): install per-PR evidence page"
        git push -u origin HEAD
 
-  5. After the preview deploy succeeds, hit /healthz/evidence on the
+  4. After the preview deploy succeeds, hit /healthz/evidence on the
      preview URL to confirm the framework starter sections probe green
      against PostgreSQL.
 
