@@ -60,6 +60,12 @@
 
 28. [Server-Side URLs: Never Hardcode Origins](#28-server-side-urls-never-hardcode-origins)
 
+### Firebase Authentication
+
+35. [Firebase Auth: Magic Link Email Flow (FastAPI + HTMX)](#35-firebase-auth-magic-link-email-flow-fastapi--htmx)
+36. [Firebase Auth: Authorized Domains for Cloud Run Preview Environments](#36-firebase-auth-authorized-domains-for-cloud-run-preview-environments)
+37. [Firebase Auth: Session Cookies vs ID Tokens on the Server](#37-firebase-auth-session-cookies-vs-id-tokens-on-the-server)
+
 ### Workshop Operations
 
 29. [Workshop: Participant Email Must Match Their Google Identity](#29-workshop-participant-email-must-match-their-google-identity)
@@ -1326,3 +1332,304 @@ single CI run had failed loud at the missing output. Conversion to
 fail-loud is therefore a *retroactive* defense: it doesn't fix the
 specific bugs the cascade hid, but it ensures the next bug surfaces
 within one run instead of months.
+
+---
+
+## 35. Firebase Auth: Magic Link Email Flow (FastAPI + HTMX)
+
+**Pattern:** The complete recipe for adding email-link (magic link) sign-in
+to this fork's FastAPI + Jinja2 + HTMX stack using Firebase Authentication.
+Implemented in `app/auth/` (ticket #7). Cross-reference with upstream
+pattern #24 (Next.js + Supabase equivalent).
+
+**Why the split between client and server?**
+
+The magic-link auth flow MUST involve the client because Firebase only validates
+the `oobCode` query parameter from within a browser context using the Web SDK.
+The server cannot complete the flow alone. The split:
+
+1. **Client** (`/auth/callback` page) calls `auth.signInWithEmailLink(email, href)`
+   which verifies the `oobCode`, signs the user into the browser-side Firebase
+   session, and retrieves a short-lived **ID token** (1h lifetime).
+2. **Client** POSTs the ID token to the server at `POST /auth/session`.
+3. **Server** calls `auth.verify_id_token(id_token)` and then
+   `auth.create_session_cookie(id_token, expires_in=...)` to mint a durable
+   **session cookie** (up to 14 days). See pattern #37 for why cookies beat tokens.
+
+**Flow diagram:**
+
+```
+User visits /login
+       |
+       | fills email, submits
+       v
+Firebase JS SDK: sendSignInLinkToEmail(email, {url: origin + "/auth/callback"})
+       |
+       | Firebase sends email with magic link
+       v
+User clicks link in email → browser navigates to /auth/callback?oobCode=...
+       |
+       | callback.html JS: auth.isSignInWithEmailLink(href) → true
+       | auth.signInWithEmailLink(email, href) → UserCredential
+       | user.getIdToken() → id_token
+       v
+POST /auth/session  { "id_token": "..." }
+       |
+       | FastAPI handler:
+       |   auth.verify_id_token(id_token) → decoded claims
+       |   auth.create_session_cookie(id_token, expires_in=5d)
+       |   upsert users table (keyed by firebase_uid)
+       |   Set-Cookie: af_session=<cookie>; HttpOnly; SameSite=Lax
+       v
+Client redirects to / → middleware reads cookie → authenticated
+```
+
+**8-file architecture:**
+
+| File | Role |
+|---|---|
+| `app/auth/firebase.py` | Admin SDK init (idempotent; reads SA from Secret Manager) |
+| `app/auth/middleware.py` | Starlette middleware — enforces auth, no-op when `FIREBASE_PROJECT_ID` unset |
+| `app/auth/dependencies.py` | `require_user` / `optional_user` FastAPI dependencies |
+| `app/auth/routes.py` | GET /login, GET /check-email, GET /auth/callback, POST /auth/session, POST /auth/logout |
+| `app/models/user.py` | `User` SQLModel keyed by `firebase_uid` |
+| `templates/auth/login.html` | Email form + Firebase JS SDK |
+| `templates/auth/check_email.html` | "Check your inbox" confirmation |
+| `templates/auth/callback.html` | Completes sign-in, POSTs ID token to server |
+
+**Minimal code samples:**
+
+The FastAPI dependency (in `app/auth/dependencies.py`):
+
+```python
+from fastapi import Depends, HTTPException, Request, status
+from sqlmodel import Session
+from app.db import get_session
+from app.models.user import User
+
+def optional_user(
+    request: Request,
+    session: Session = Depends(get_session),  # noqa: B008
+) -> User | None:
+    import os
+    if not os.environ.get("FIREBASE_PROJECT_ID"):
+        return None
+    cookie = request.cookies.get("af_session")
+    if not cookie:
+        return None
+    try:
+        from firebase_admin import auth
+        claims = auth.verify_session_cookie(cookie, check_revoked=True)
+        return session.get(User, claims["uid"])
+    except Exception:
+        return None
+
+def require_user(
+    request: Request,
+    user: User | None = Depends(optional_user),  # noqa: B008
+) -> User:
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return user
+```
+
+The session exchange handler (in `app/auth/routes.py`):
+
+```python
+@router.post("/auth/session", status_code=204)
+async def create_session(request: Request, response: Response,
+                         db: Session = Depends(get_session)):  # noqa: B008
+    body = await request.json()
+    id_token = body.get("id_token", "")
+    try:
+        from firebase_admin import auth
+        decoded = auth.verify_id_token(id_token)
+        cookie = auth.create_session_cookie(id_token, expires_in=timedelta(days=5))
+        # upsert user row
+        user = db.get(User, decoded["uid"]) or User(
+            firebase_uid=decoded["uid"], email=decoded.get("email", ""))
+        db.add(user)
+        db.commit()
+        response.set_cookie("af_session", cookie,
+                            httponly=True, secure=True, samesite="lax",
+                            max_age=5 * 24 * 3600)
+    except Exception:
+        response.status_code = 401
+```
+
+**Firebase Console setup (one-time per project):**
+
+1. Firebase Console → Authentication → Sign-in method → Email/Password → enable
+   → **Email link (passwordless sign-in)** → enable
+2. Authentication → Settings → Authorized domains → add your Cloud Run domain
+   (and preview domains — see pattern #36)
+3. IAM → create service account with **Firebase Authentication Admin** role
+4. Download JSON → `gcloud secrets create firebase-admin-sa --data-file=sa.json`
+5. Set `FIREBASE_PROJECT_ID=<your-gcp-project>` on the Cloud Run service
+
+---
+
+## 36. Firebase Auth: Authorized Domains for Cloud Run Preview Environments
+
+**Gotcha:** Firebase Authentication validates the **origin** of every magic-link
+`continueUrl` against an allowlist. If the origin is not authorized, Firebase
+silently rejects the sign-in with:
+
+```
+Firebase: Error (auth/unauthorized-continue-uri).
+```
+
+Cloud Run preview URLs (`https://pr-42---service-name-abcxyz-uc.a.run.app`) are
+dynamically generated per PR. Firebase Auth does NOT accept wildcard subdomains
+under `*.a.run.app` — it requires exact hostnames or verified-domain wildcards.
+
+**Wrong (hardcoded origin):**
+
+```javascript
+// login.html — WRONG
+const actionCodeSettings = {
+  url: "https://my-service.run.app/auth/callback",  // ← hardcoded
+  handleCodeInApp: true,
+};
+```
+
+**Right (dynamic origin):**
+
+```javascript
+// login.html — RIGHT
+const actionCodeSettings = {
+  url: window.location.origin + "/auth/callback",  // ← dynamic
+  handleCodeInApp: true,
+};
+```
+
+Using `window.location.origin` means the magic link is always generated for the
+current domain — production, preview, or local dev — without any code changes.
+But Firebase still needs the domain in its allowlist before it will honor it.
+
+**Two workable solutions for preview URLs:**
+
+**Option A — Custom preview domain (recommended for workshops):**
+
+Route all Cloud Run previews through a custom domain you control, e.g.
+`pr-{N}.previews.example.com`. Add `*.previews.example.com` to Firebase Auth's
+authorized domains (Firebase accepts `*.verified-domain.com` wildcards). Set up
+a Google Cloud Load Balancer or Cloudflare Worker to route the subdomain to the
+correct Cloud Run revision.
+
+**Option B — Add preview domain at deploy time (simpler but slower):**
+
+In `preview-deploy.yml`, after extracting the preview URL, call the Firebase Auth
+REST API to add the hostname to the authorized domains list:
+
+```yaml
+- name: Authorize preview domain in Firebase Auth
+  if: steps.check_secrets.outputs.skip != 'true'
+  env:
+    FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+  run: |
+    PREVIEW_HOST=$(echo "${{ steps.deploy.outputs.preview_url }}" | sed 's|https://||')
+    # Get an access token for the Firebase Management API
+    TOKEN=$(gcloud auth print-access-token)
+    curl -s -X PATCH \
+      "https://identitytoolkit.googleapis.com/admin/v2/projects/${FIREBASE_PROJECT_ID}/config" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary "{
+        \"authorizedDomains\": [\"${PREVIEW_HOST}\"]
+      }"
+```
+
+> **Note:** The PATCH above uses a field mask; if your project already has
+> authorized domains you must fetch the current list and append, not overwrite.
+> For workshop use where previews are short-lived, appending one hostname per
+> PR is acceptable; for production, manage the list explicitly.
+
+In `preview-cleanup.yml`, remove the hostname on PR close to keep the allowlist
+from growing indefinitely.
+
+Upstream patterns #1 and #4 describe the analogous Supabase pattern (redirect
+URL allowlisting) and the preview-env redirect URL problem they solve.
+
+---
+
+## 37. Firebase Auth: Session Cookies vs ID Tokens on the Server
+
+**Gotcha:** Using Firebase ID tokens for server-side sessions seems straightforward
+but breaks in server-rendered apps because tokens expire in 1 hour and require
+client-side refresh logic — which HTMX-driven apps don't have.
+
+**What an ID token is:**
+
+A short-lived (1h) signed JWT minted by the Firebase client SDK after sign-in.
+The server can verify it with `auth.verify_id_token(token)` but it expires
+quickly and the client must refresh it via `user.getIdToken(true)`. In a
+JavaScript SPA, this is automatic. In a server-rendered app with HTMX, there is
+no continuous JS loop to refresh the token — the user gets a 401 after an hour.
+
+**What a session cookie is:**
+
+A longer-lived (up to 14 days) opaque token minted server-side via
+`auth.create_session_cookie(id_token, expires_in=...)`. It is verified server-side
+with `auth.verify_session_cookie(cookie, check_revoked=True)`. The client never
+sees the Firebase token internals — just an opaque cookie.
+
+**Pattern (prefer session cookies for server-rendered apps):**
+
+```python
+# Exchange the short-lived ID token for a long-lived session cookie
+from datetime import timedelta
+from firebase_admin import auth
+
+def exchange_id_token_for_session_cookie(id_token: str) -> str:
+    # verify_id_token first to reject bad tokens before creating a cookie
+    auth.verify_id_token(id_token)
+    return auth.create_session_cookie(id_token, expires_in=timedelta(days=5))
+```
+
+```python
+# Verify the session cookie on every request (middleware)
+def verify_session(cookie: str) -> dict:
+    # check_revoked=True costs one Firebase round trip per request but
+    # ensures admin-triggered revocations take effect immediately.
+    # For a workshop starter this is acceptable; relax with
+    # check_revoked=False + short cookie lifetime if latency matters.
+    return auth.verify_session_cookie(cookie, check_revoked=True)
+```
+
+**Cookie flags — why each one matters:**
+
+| Flag | Value | Why |
+|---|---|---|
+| `HttpOnly` | True | Prevents JavaScript from reading the cookie — protects against XSS |
+| `Secure` | True (prod) | Cookie only sent over HTTPS — prevents credential interception |
+| `SameSite` | `Lax` | **NOT `Strict`** — see below |
+
+**`SameSite=Strict` breaks magic-link sign-in:**
+
+When the user clicks the magic link in their email client, the browser navigates
+from the email client's domain to your app's `/auth/callback`. This is a
+**cross-site navigation** — the Referer origin is the email client, not your app.
+With `SameSite=Strict`, the browser does NOT send cookies on cross-site navigations,
+so the session cookie set by the magic-link redirect would never be sent on the
+first request after sign-in. The user would be signed in but immediately redirected
+back to `/login`.
+
+`SameSite=Lax` allows the cookie on top-level cross-site navigations (link clicks,
+form submissions) but blocks it in cross-site iframes and subrequests — the right
+balance for magic-link flows.
+
+**Logout — revoke tokens, don't just clear the cookie:**
+
+```python
+@router.post("/auth/logout", status_code=204)
+async def logout(response: Response, user: User | None = Depends(optional_user)):  # noqa: B008
+    if user:
+        from firebase_admin import auth
+        auth.revoke_refresh_tokens(user.firebase_uid)
+    response.delete_cookie("af_session", httponly=True, samesite="lax")
+```
+
+`revoke_refresh_tokens` invalidates all existing session cookies and ID tokens
+for the user. Without this, a stolen session cookie remains valid until it
+expires naturally.
