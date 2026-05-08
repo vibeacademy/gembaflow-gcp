@@ -72,16 +72,21 @@ def test_require_user_with_valid_cookie(test_app: TestClient, db_session: Sessio
     """When cookie is valid, require_user returns the User row."""
     from datetime import datetime
 
-    user = User(firebase_uid="uid-123", email="alice@example.com",
-                created_at=datetime.utcnow(), last_login_at=datetime.utcnow())
+    user = User(
+        firebase_uid="uid-123",
+        email="alice@example.com",
+        created_at=datetime.utcnow(),
+        last_login_at=datetime.utcnow(),
+    )
     db_session.add(user)
     db_session.commit()
 
     with patch.dict(os.environ, {"FIREBASE_PROJECT_ID": "test-project"}):
         with patch("firebase_admin.auth.verify_session_cookie") as mock_verify:
             mock_verify.return_value = {"uid": "uid-123", "email": "alice@example.com"}
-            client = TestClient(test_app.app, raise_server_exceptions=False,
-                                cookies={"af_session": "fake-cookie"})
+            client = TestClient(
+                test_app.app, raise_server_exceptions=False, cookies={"af_session": "fake-cookie"}
+            )
             response = client.get("/protected")
 
     assert response.status_code == 200
@@ -93,8 +98,11 @@ def test_require_user_with_expired_cookie(test_app: TestClient) -> None:
     with patch.dict(os.environ, {"FIREBASE_PROJECT_ID": "test-project"}):
         with patch("firebase_admin.auth.verify_session_cookie") as mock_verify:
             mock_verify.side_effect = Exception("TOKEN_EXPIRED")
-            client = TestClient(test_app.app, raise_server_exceptions=False,
-                                cookies={"af_session": "expired-cookie"})
+            client = TestClient(
+                test_app.app,
+                raise_server_exceptions=False,
+                cookies={"af_session": "expired-cookie"},
+            )
             response = client.get("/protected")
 
     assert response.status_code == 401
