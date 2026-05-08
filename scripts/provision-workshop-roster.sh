@@ -265,6 +265,34 @@ if [[ "$ACTUAL_HEADER" != "$EXPECTED_HEADER_4" \
   exit 2
 fi
 
+# ── Neon pre-flight: hard-fail before any GCP work if neon_project_id missing ──
+#
+# Enforce when the facilitator clearly intends Neon: NEON_API_KEY is set.
+# In that case every 7-column row must have a non-empty neon_project_id so
+# Step 5.7 can create the per-attendee branch secret. A missing ID means
+# create-workshop-neon-projects.sh was not run yet; failing here (before any
+# GCP projects are created) avoids half-provisioned classrooms that look green
+# but fail on the first PR deploy. (Surfaced: 2026-05-05 dry run.)
+#
+# 4/5/6-column rosters are skipped by the check — they have no neon_project_id
+# column and handle the missing-Neon case elsewhere.
+
+if [[ -n "${NEON_API_KEY:-}" && "$ACTUAL_HEADER" == "$EXPECTED_HEADER_7" ]]; then
+  neon_check_row=0
+  while IFS=',' read -r _h _gu _em _co _nb _gfr _npid; do
+    _h="$(echo "$_h" | tr -d '[:space:]\r')"
+    _npid="$(echo "${_npid:-}" | tr -d '[:space:]\r')"
+    [[ -z "$_h" ]] && continue
+    neon_check_row=$((neon_check_row + 1))
+    if [[ -z "$_npid" ]]; then
+      echo "[fail] Row $neon_check_row (handle=$_h) has empty neon_project_id but NEON_API_KEY is set." >&2
+      echo "       Run scripts/create-workshop-neon-projects.sh $ROSTER_CSV first to" >&2
+      echo "       create per-attendee Neon projects, then re-run this script." >&2
+      exit 2
+    fi
+  done < <(tail -n +2 "$ROSTER_CSV")
+fi
+
 # ── Output CSV setup ─────────────────────────────────────────────────────
 
 if [[ ! -f "$OUTPUT_CSV" ]]; then

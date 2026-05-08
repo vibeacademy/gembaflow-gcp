@@ -1009,6 +1009,73 @@ else
   PASS=$((PASS + 1))
 fi
 
+# ── Test 24: hard-fail when neon_project_id missing and NEON_API_KEY set ──
+#
+# #167: facilitator forgot to run create-workshop-neon-projects.sh first.
+# The wrapper must exit 2 BEFORE creating any GCP projects, with a message
+# pointing to the fix. Verified: no provision-gcp-project.sh is called.
+
+echo ""
+echo "Test 24: hard-fail when 7-column roster has empty neon_project_id and NEON_API_KEY set"
+
+T24=$(new_tmp)
+make_stubs "$T24" "ok"
+cat > "$T24/roster.csv" <<EOF
+handle,github_user,email,cohort,neon_branch,github_full_repo,neon_project_id
+alice,alice-gh,alice@x.com,2026-05,alice,vibeacademy/alice,
+bob,bob-gh,bob@x.com,2026-05,bob,vibeacademy/bob,proj-bob-bbb
+EOF
+
+set +e
+PATH="$T24/bin:$PATH" \
+  BILLING_ACCOUNT_ID="FAKE-BILLING" \
+  NEON_API_KEY="neon-fake-key" \
+  PROVISION_SCRIPT="$T24/bin/provision-gcp-project.sh" \
+  OUTPUT_CSV="$T24/roster-output.csv" \
+  "$WRAPPER" "$T24/roster.csv" > "$T24/stdout.log" 2>&1
+exit_code=$?
+set -e
+
+assert_eq "2" "$exit_code" "exits 2 on empty neon_project_id with NEON_API_KEY set"
+assert_contains "empty neon_project_id" "$T24/stdout.log" "error message mentions empty neon_project_id"
+assert_contains "create-workshop-neon-projects.sh" "$T24/stdout.log" "error message points to fix"
+# Must not have called the provisioner (no GCP project creation)
+if [[ ! -f "$T24/provision.log" ]]; then
+  echo -e "  ${GREEN}✓${NC} no GCP provisioning attempted before failing"
+  PASS=$((PASS + 1))
+else
+  echo -e "  ${RED}✗${NC} provisioner was called despite pre-flight failure"
+  FAIL=$((FAIL + 1))
+fi
+
+# ── Test 25: legitimate skip — no NEON_API_KEY, no neon_project_id ────────
+#
+# #167: a cohort not using Neon at all. The 7-column roster has empty
+# neon_project_id, but NEON_API_KEY is unset, so the pre-flight should
+# pass silently and provisioning should succeed.
+
+echo ""
+echo "Test 25: no NEON_API_KEY set — empty neon_project_id is a legitimate skip"
+
+T25=$(new_tmp)
+make_stubs "$T25" "ok"
+cat > "$T25/roster.csv" <<EOF
+handle,github_user,email,cohort,neon_branch,github_full_repo,neon_project_id
+alice,alice-gh,alice@x.com,2026-05,alice,vibeacademy/alice,
+EOF
+
+set +e
+PATH="$T25/bin:$PATH" \
+  BILLING_ACCOUNT_ID="FAKE-BILLING" \
+  PROVISION_SCRIPT="$T25/bin/provision-gcp-project.sh" \
+  OUTPUT_CSV="$T25/roster-output.csv" \
+  "$WRAPPER" "$T25/roster.csv" > "$T25/stdout.log" 2>&1
+exit_code=$?
+set -e
+
+assert_eq "0" "$exit_code" "exits 0 when NEON_API_KEY unset (no Neon intent)"
+assert_contains "af-alice-2026-05" "$T25/stdout.log" "provisioning proceeds for alice"
+
 echo ""
 echo "─────────────────────────────────"
 echo "  Passed: $PASS"
