@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}PR Evidence — Agile Flow GCP{% endblock %}
+
+{% block content %}
+  <hgroup>
+    <h1>PR Verification</h1>
+    <p>
+      <strong>Preview environment — production will look different.</strong>
+      This page shows what changed in this PR and how to verify the work is
+      real. Read each section below and check the result.
+    </p>
+  </hgroup>
+
+  {% if all_passed %}
+    <article style="border-left: 4px solid var(--pico-color-green-500, #2d8a4e); padding: 1rem; margin-bottom: 1.5rem;">
+      <strong>All checks passed.</strong>
+      The PR is ready for your review. Use the explanations below to
+      understand what was built before approving.
+    </article>
+  {% else %}
+    <article style="border-left: 4px solid var(--pico-color-orange-500, #d4760a); padding: 1rem; margin-bottom: 1.5rem;">
+      <strong>Some checks did not pass.</strong>
+      The agent has been notified and will attempt one repair. If you see
+      this on the final version, check the PR comment for manual
+      verification instructions.
+    </article>
+  {% endif %}
+
+  {% for section in sections %}
+    <section>
+      <h3>
+        {% if section.passed %}
+          ✓
+        {% else %}
+          ✗
+        {% endif %}
+        {{ section.name }}
+      </h3>
+      <p><strong>What the check found:</strong> <code>{{ section.observation }}</code></p>
+      <p>{{ section.explanation }}</p>
+      {% if not section.passed %}
+        <p><em>This check did not pass. See the PR comment for what to verify manually.</em></p>
+      {% endif %}
+    </section>
+    {% if not loop.last %}<hr>{% endif %}
+  {% endfor %}
+
+  <footer>
+    <small>
+      Evidence page — visible on preview deployments only.
+      Production serves the real app at <code>/</code>.
+    </small>
+  </footer>
+{% endblock %}

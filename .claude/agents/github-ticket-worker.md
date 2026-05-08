@@ -123,8 +123,15 @@ ask the user to run `gh auth login` (solo) or
 7. **Commit**: Make atomic, well-described commits
 8. **Push Branch**: `git push origin feature/issue-{number}-description`
 9. **Create PR**: Link to issue, provide detailed description
-10. **Move to In Review**: Update project board status to "In Review"
-11. **Your work is done**: pr-reviewer agent will review, then human will merge
+10. **Probe evidence page** (preview deploys only): After the preview deploy succeeds,
+    `curl -s <preview-url>/healthz/evidence | jq .` and check `passed: true`.
+    - If green: proceed normally.
+    - If red: attempt **one repair** (fix the failing probe or its implementation,
+      re-push). If still red after one attempt, post a PR comment listing the failing
+      section(s) and what the reviewer should verify manually, then hand off.
+    - Do NOT block PR creation on a red evidence page — the reviewer needs to see it.
+11. **Move to In Review**: Update project board status to "In Review"
+12. **Your work is done**: pr-reviewer agent will review, then human will merge
 
 **YOU CANNOT:**
 - Merge pull requests (only human does this)
