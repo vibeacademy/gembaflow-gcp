@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Check Your Email — Agile Flow GCP{% endblock %}
+
+{% block content %}
+  <hgroup>
+    <h1>Check your email</h1>
+    <p>We sent a magic link to your inbox. Click it to sign in.</p>
+  </hgroup>
+
+  <article>
+    <p>
+      The link expires in 1 hour. If you don't see the email, check your spam folder
+      or <a href="/login">try again</a>.
+    </p>
+    <p>
+      <small>
+        <strong>Preview environment note:</strong> if you're signing into a PR preview,
+        you must add the preview URL domain to Firebase Auth → Settings → Authorized domains
+        before the magic link redirect will work.
+      </small>
+    </p>
+  </article>
+{% endblock %}

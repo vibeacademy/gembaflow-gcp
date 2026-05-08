@@ -13,6 +13,11 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api import health, todos
+from app.auth.firebase import init_firebase
+from app.auth.middleware import FirebaseAuthMiddleware
+from app.auth.routes import router as auth_router
+
+init_firebase()
 
 app = FastAPI(title="Agile Flow GCP")
 
@@ -21,8 +26,15 @@ app = FastAPI(title="Agile Flow GCP")
 STATIC_DIR = Path(__file__).parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+# Auth middleware — enforces sign-in for non-allowlisted routes.
+# No-ops when FIREBASE_PROJECT_ID is unset (local dev mode).
+app.add_middleware(FirebaseAuthMiddleware)
+
 # Routes
 app.include_router(health.router)
+
+# Auth routes: /login, /check-email, /auth/callback, /auth/session, /auth/logout
+app.include_router(auth_router)
 
 # Evidence page — preview deployments only.
 # ENVIRONMENT=preview is set by preview-deploy.yml. Production either omits

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Signing In… — Agile Flow GCP{% endblock %}
+
+{% block content %}
+  <div id="status">
+    <p aria-live="polite">Completing sign-in…</p>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script>
+    (async () => {
+      const statusEl = document.getElementById("status");
+
+      function showError(msg) {
+        statusEl.innerHTML = `<p><strong>Sign-in failed:</strong> ${msg}. <a href="/login">Try again</a></p>`;
+      }
+
+      const apiKey = document.querySelector('meta[name="firebase-api-key"]')?.content || "";
+      if (!apiKey) {
+        showError("Firebase API key not configured");
+        return;
+      }
+
+      const app = firebase.initializeApp({ projectId: "{{ firebase_project_id }}", apiKey });
+      const auth = firebase.auth(app);
+
+      if (!auth.isSignInWithEmailLink(window.location.href)) {
+        showError("This link is not a valid magic link");
+        return;
+      }
+
+      let email = window.localStorage.getItem("emailForSignIn");
+      if (!email) {
+        email = window.prompt("Please confirm your email address:");
+      }
+      if (!email) {
+        showError("Email address is required");
+        return;
+      }
+
+      try {
+        const result = await auth.signInWithEmailLink(email, window.location.href);
+        window.localStorage.removeItem("emailForSignIn");
+
+        const idToken = await result.user.getIdToken();
+
+        const resp = await fetch("/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id_token: idToken }),
+        });
+
+        if (resp.ok || resp.status === 204) {
+          const next = new URLSearchParams(window.location.search).get("next") || "/";
+          window.location.href = next;
+        } else {
+          showError("Server rejected the sign-in token (status " + resp.status + ")");
+        }
+      } catch (err) {
+        showError(err.message || "unknown error");
+      }
+    })();
+  </script>
+{% endblock %}

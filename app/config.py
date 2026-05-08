@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     app_url: str = "http://localhost:8080"
     environment: str = "development"
 
+    # Firebase Auth — optional; when unset, auth is disabled (local dev mode).
+    # See docs/PATTERN-LIBRARY.md for the Firebase setup recipe.
+    firebase_project_id: str = ""
+    firebase_service_account_secret_name: str = "firebase-admin-sa"
+    session_cookie_name: str = "af_session"
+    session_cookie_max_age: int = 5 * 24 * 3600  # 5 days in seconds
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
