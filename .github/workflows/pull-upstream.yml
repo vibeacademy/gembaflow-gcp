@@ -34,10 +34,12 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          if git diff --cached --quiet; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          else
+          # Script commits if it applied updates; check log vs HEAD~1
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          if echo "$COMMIT_MSG" | grep -q "^chore(upstream): sync framework files"; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Push directly to main
@@ -62,20 +64,9 @@ jobs:
           BRANCH="upstream-sync/$(date -u +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH"
           git push origin "$BRANCH"
-          gh pr create \
-            --title "chore(upstream): sync framework files from agile-flow@${UPSTREAM_SHA:0:7}" \
-            --body "## Upstream Framework Sync
-
-Applies the latest agent prompts, commands, hooks, and skills from
-[vibeacademy/agile-flow](https://github.com/vibeacademy/agile-flow).
-
-GCP-specific overrides listed in \`.agile-flow-overrides\` were not modified.
-
----
-> Triggered via the **Pull Upstream** workflow (\`workflow_dispatch\`).
-> Review and merge when ready." \
-            --base main \
-            --head "$BRANCH"
+          PR_TITLE="chore(upstream): sync framework files from agile-flow@${UPSTREAM_SHA:0:7}"
+          PR_BODY="Upstream sync from agile-flow@${UPSTREAM_SHA:0:7}. GCP-specific overrides in .agile-flow-overrides were preserved. Triggered via the Pull Upstream workflow (workflow_dispatch). Review and merge when ready."
+          gh pr create --title "$PR_TITLE" --body "$PR_BODY" --base main --head "$BRANCH"
 
       - name: Report no changes
         if: steps.changes.outputs.has_changes == 'false'
