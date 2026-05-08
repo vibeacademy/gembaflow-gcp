@@ -1,10 +1,13 @@
 # .agile-flow-overrides
 #
-# Files in syncDirectories that are intentionally customised for this fork.
-# pull-upstream.sh and template-sync.sh will never overwrite these.
+# Files that are intentionally local to this fork.
+# upgrade.sh and pull-upstream.sh will never overwrite these.
 #
 # One path per line. Lines starting with # are comments.
 # Paths are relative to the repo root.
+
+# Metadata directory is always local — never stomped by upstream upgrades
+.agile-flow-meta/
 
 # Agent prompts rewritten for GCP / FastAPI / Neon
 .claude/agents/github-ticket-worker.md
