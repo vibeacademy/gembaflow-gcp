@@ -191,6 +191,67 @@ fi
 # the bot is not authed, the invite is issued but not accepted; a clear
 # WARN tells the facilitator how to recover manually.
 
+grant_push_to_attendee() {
+  local repo="$1" github_user="$2"
+
+  if [[ -z "$github_user" ]]; then
+    echo "  WARN: github_user is empty — skipping attendee push grant for $repo" >&2
+    return 1
+  fi
+
+  # Idempotency check: already a collaborator with write or higher?
+  local current_perm
+  current_perm=$(gh api "repos/$repo/collaborators/$github_user/permission" --jq '.permission' 2>/dev/null || echo "none")
+  if [[ "$current_perm" == "write" || "$current_perm" == "admin" || "$current_perm" == "maintain" ]]; then
+    echo "  [skip] $github_user already has $current_perm on $repo"
+    return 0
+  fi
+
+  # Issue the invite. The attendee must accept manually — we cannot auth
+  # as them locally, and auto-accepting on their behalf would cross a
+  # permission boundary. Attendee accepts via email link or from inside
+  # their Codespace: gh api PATCH /user/repository_invitations/<id>
+  if ! gh api -X PUT "repos/$repo/collaborators/$github_user" -f permission=push >/dev/null 2>&1; then
+    echo "  WARN: failed to invite $github_user to $repo (continuing)"
+    return 1
+  fi
+  echo "  [invite] $github_user invited to $repo with push (attendee must accept)"
+}
+
+grant_project_writer_to_attendee() {
+  local repo="$1" github_user="$2" project_node_id="$3"
+
+  if [[ -z "$project_node_id" ]]; then
+    return 0
+  fi
+  if [[ -z "$github_user" ]]; then
+    echo "  WARN: github_user is empty — skipping project-board grant for $repo" >&2
+    return 1
+  fi
+
+  # Resolve the attendee's GitHub user node ID (needed for the GraphQL mutation).
+  local user_node_id
+  user_node_id=$(gh api "users/$github_user" --jq '.node_id' 2>/dev/null || echo "")
+  if [[ -z "$user_node_id" ]]; then
+    echo "  WARN: could not resolve node_id for $github_user — skipping project grant"
+    return 1
+  fi
+
+  # Grant WRITER on the project board. The mutation is idempotent — re-adding an
+  # existing collaborator at the same role returns the project node without error.
+  if ! gh api graphql -f query="
+    mutation {
+      updateProjectV2Collaborators(input: {
+        projectId: \"$project_node_id\"
+        collaborators: [{ userId: \"$user_node_id\", role: WRITER }]
+      }) { project { id } }
+    }" >/dev/null 2>&1; then
+    echo "  WARN: failed to grant project WRITER to $github_user on project $project_node_id (continuing)"
+    return 1
+  fi
+  echo "  [project] $github_user granted WRITER on project $project_node_id"
+}
+
 grant_push_to_bot() {
   local repo="$1" bot="$2"
 
@@ -250,17 +311,20 @@ EXPECTED_HEADER_4="handle,github_user,email,cohort"
 EXPECTED_HEADER_5="handle,github_user,email,cohort,neon_branch"
 EXPECTED_HEADER_6="handle,github_user,email,cohort,neon_branch,github_full_repo"
 EXPECTED_HEADER_7="handle,github_user,email,cohort,neon_branch,github_full_repo,neon_project_id"
+EXPECTED_HEADER_8="handle,github_user,email,cohort,neon_branch,github_full_repo,neon_project_id,project_id"
 ACTUAL_HEADER="$(head -n 1 "$ROSTER_CSV" | tr -d '\r')"
 
 if [[ "$ACTUAL_HEADER" != "$EXPECTED_HEADER_4" \
    && "$ACTUAL_HEADER" != "$EXPECTED_HEADER_5" \
    && "$ACTUAL_HEADER" != "$EXPECTED_HEADER_6" \
-   && "$ACTUAL_HEADER" != "$EXPECTED_HEADER_7" ]]; then
+   && "$ACTUAL_HEADER" != "$EXPECTED_HEADER_7" \
+   && "$ACTUAL_HEADER" != "$EXPECTED_HEADER_8" ]]; then
   echo "ERROR: roster CSV header must be one of:" >&2
   echo "       $EXPECTED_HEADER_4" >&2
   echo "       $EXPECTED_HEADER_5" >&2
   echo "       $EXPECTED_HEADER_6" >&2
   echo "       $EXPECTED_HEADER_7" >&2
+  echo "       $EXPECTED_HEADER_8" >&2
   echo "       got: $ACTUAL_HEADER" >&2
   exit 2
 fi
@@ -310,9 +374,9 @@ skipped=0
 # tail -n +2 skips header. Process substitution avoids subshell so counters
 # survive into the summary block.
 #
-# We read 7 fields. 4-, 5-, and 6-column rows leave the trailing fields
-# empty; the default-fallback logic below covers them.
-while IFS=',' read -r handle github_user email cohort neon_branch github_full_repo row_neon_project_id; do
+# We read 8 fields. 4–7-column rows leave the trailing fields empty;
+# the default-fallback logic below covers them.
+while IFS=',' read -r handle github_user email cohort neon_branch github_full_repo row_neon_project_id row_project_id; do
   # Strip whitespace and CR (Windows line endings)
   handle="$(echo "$handle" | tr -d '[:space:]\r')"
   github_user="$(echo "$github_user" | tr -d '[:space:]\r')"
@@ -321,6 +385,7 @@ while IFS=',' read -r handle github_user email cohort neon_branch github_full_re
   neon_branch="$(echo "${neon_branch:-}" | tr -d '[:space:]\r')"
   github_full_repo="$(echo "${github_full_repo:-}" | tr -d '[:space:]\r')"
   row_neon_project_id="$(echo "${row_neon_project_id:-}" | tr -d '[:space:]\r')"
+  row_project_id="$(echo "${row_project_id:-}" | tr -d '[:space:]\r')"
 
   if [[ -z "$handle" || -z "$cohort" ]]; then
     continue
@@ -416,6 +481,14 @@ while IFS=',' read -r handle github_user email cohort neon_branch github_full_re
     if [[ -n "${AGILE_FLOW_REVIEWER_ACCOUNT:-}" ]]; then
       grant_push_to_bot "$github_full_repo" "$AGILE_FLOW_REVIEWER_ACCOUNT" || true
     fi
+
+    # Grant push to the attendee themselves (#165). Attendee must accept the
+    # invite manually (email link or Codespace: gh api PATCH /user/repository_invitations/<id>).
+    grant_push_to_attendee "$github_full_repo" "$github_user" || true
+
+    # Grant project board WRITER to the attendee (#166). Only fires when the
+    # 8-column roster has a non-empty project_id for this row. Fail-soft.
+    grant_project_writer_to_attendee "$github_full_repo" "$github_user" "${row_project_id:-}" || true
   fi
 
   # Detect whether the project already exists, so we can label the output

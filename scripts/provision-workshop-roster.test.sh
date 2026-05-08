@@ -924,12 +924,14 @@ set -e
 assert_eq "0" "$exit_code" "wrapper exits 0 with bot env vars unset"
 # repo create still runs (this is the workshop-org path)
 assert_contains "gh repo create vibeacademy/alice" "$T22/gh.log" "repo create still runs"
-# But NO collaborator-related calls
-if grep -q "collaborators" "$T22/gh.log"; then
-  echo -e "  ${RED}✗${NC} collaborator API called despite bot env vars unset (solo-mode broken)"
+# Attendee collaborator invite DOES happen (grant_push_to_attendee fires for the attendee's github_user)
+assert_contains "collaborators/alice-gh" "$T22/gh.log" "attendee collaborator invite issued"
+# But no BOT-specific collaborator calls (worker/reviewer env vars are unset)
+if grep -q "collaborators/va-worker\|collaborators/va-reviewer" "$T22/gh.log"; then
+  echo -e "  ${RED}✗${NC} bot collaborator calls made despite bot env vars unset"
   FAIL=$((FAIL + 1))
 else
-  echo -e "  ${GREEN}✓${NC} no collaborator API calls when bot env vars unset (solo-mode OK)"
+  echo -e "  ${GREEN}✓${NC} no bot collaborator API calls when bot env vars unset (solo-mode OK)"
   PASS=$((PASS + 1))
 fi
 if grep -q "repository_invitations" "$T22/gh.log"; then
@@ -1075,6 +1077,192 @@ set -e
 
 assert_eq "0" "$exit_code" "exits 0 when NEON_API_KEY unset (no Neon intent)"
 assert_contains "af-alice-2026-05" "$T25/stdout.log" "provisioning proceeds for alice"
+
+# ── Test 26: attendee push-grant fires in workshop-org mode (#165) ────────
+#
+# grant_push_to_attendee() should be called for each row's github_user when
+# WORKSHOP_ORG is set, issuing a PUT collaborators invite.
+
+echo ""
+echo "Test 26: attendee push-grant fires in workshop-org mode"
+
+T26=$(new_tmp)
+make_stubs "$T26" "ok"
+
+cat > "$T26/bin/gh" <<EOF
+#!/usr/bin/env bash
+echo "gh \$*" >> "$T26/gh.log"
+case "\$1 \$2" in
+  "repo view") exit 1 ;;
+  "repo create") exit 0 ;;
+  "api graphql") echo '{"data":{"updateProjectV2Collaborators":{"project":{"id":"PVT_x"}}}}' ;;
+  "api users/alice-gh") echo '{"node_id":"U_alice123"}' ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "$T26/bin/gh"
+
+cat > "$T26/roster.csv" <<EOF
+handle,github_user,email,cohort
+alice,alice-gh,alice@x.com,2026-05
+EOF
+
+set +e
+PATH="$T26/bin:$PATH" \
+  BILLING_ACCOUNT_ID="FAKE-BILLING" \
+  PROVISION_SCRIPT="$T26/bin/provision-gcp-project.sh" \
+  OUTPUT_CSV="$T26/roster-output.csv" \
+  GH_REPO_CREATE="$T26/bin/gh" \
+  "$WRAPPER" "$T26/roster.csv" --workshop-org=vibeacademy > "$T26/stdout.log" 2>&1
+exit_code=$?
+set -e
+
+assert_eq "0" "$exit_code" "wrapper exits 0"
+assert_contains "collaborators/alice-gh" "$T26/gh.log" "attendee invite PUT issued"
+assert_contains "alice-gh invited" "$T26/stdout.log" "stdout confirms attendee invite"
+
+# ── Test 27: attendee push-grant idempotent (#165) ────────────────────────
+#
+# When the attendee already has write/admin on the repo, the grant must be
+# a no-op (no PUT issued).
+
+echo ""
+echo "Test 27: attendee push-grant idempotent — skip when already write"
+
+T27=$(new_tmp)
+make_stubs "$T27" "ok"
+
+cat > "$T27/bin/gh" <<EOF
+#!/usr/bin/env bash
+echo "gh \$*" >> "$T27/gh.log"
+case "\$1 \$2" in
+  "repo view") exit 1 ;;
+  "repo create") exit 0 ;;
+  "api repos/vibeacademy/alice/collaborators/alice-gh/permission")
+    echo "write"
+    ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "$T27/bin/gh"
+
+cat > "$T27/roster.csv" <<EOF
+handle,github_user,email,cohort
+alice,alice-gh,alice@x.com,2026-05
+EOF
+
+set +e
+PATH="$T27/bin:$PATH" \
+  BILLING_ACCOUNT_ID="FAKE-BILLING" \
+  PROVISION_SCRIPT="$T27/bin/provision-gcp-project.sh" \
+  OUTPUT_CSV="$T27/roster-output.csv" \
+  GH_REPO_CREATE="$T27/bin/gh" \
+  "$WRAPPER" "$T27/roster.csv" --workshop-org=vibeacademy > "$T27/stdout.log" 2>&1
+exit_code=$?
+set -e
+
+assert_eq "0" "$exit_code" "wrapper exits 0 on idempotent run"
+# idempotency: PUT collaborators must NOT be called when already write
+if grep -q "PUT repos/vibeacademy/alice/collaborators/alice-gh" "$T27/gh.log"; then
+  echo -e "  ${RED}✗${NC} PUT collaborators called despite attendee already having write"
+  FAIL=$((FAIL + 1))
+else
+  echo -e "  ${GREEN}✓${NC} no PUT collaborators when attendee already has write (idempotent)"
+  PASS=$((PASS + 1))
+fi
+assert_contains "alice-gh already has write" "$T27/stdout.log" "stdout confirms skip"
+
+# ── Test 28: project board WRITER grant fires for 8-column roster (#166) ──
+#
+# When the roster includes a non-empty project_id column, the wrapper must
+# call the GraphQL mutation to grant the attendee WRITER on their board.
+
+echo ""
+echo "Test 28: project-board WRITER grant fires for 8-column roster"
+
+T28=$(new_tmp)
+make_stubs "$T28" "ok"
+
+cat > "$T28/bin/gh" <<EOF
+#!/usr/bin/env bash
+echo "gh \$*" >> "$T28/gh.log"
+case "\$1 \$2" in
+  "repo view") exit 1 ;;
+  "repo create") exit 0 ;;
+  "api graphql")
+    echo '{"data":{"updateProjectV2Collaborators":{"project":{"id":"PVT_abc123"}}}}'
+    ;;
+  "api users/alice-gh") echo '{"node_id":"U_alice123"}' ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "$T28/bin/gh"
+
+cat > "$T28/roster.csv" <<EOF
+handle,github_user,email,cohort,neon_branch,github_full_repo,neon_project_id,project_id
+alice,alice-gh,alice@x.com,2026-05,alice,vibeacademy/alice,proj-alice-aaa,PVT_abc123
+EOF
+
+set +e
+PATH="$T28/bin:$PATH" \
+  BILLING_ACCOUNT_ID="FAKE-BILLING" \
+  PROVISION_SCRIPT="$T28/bin/provision-gcp-project.sh" \
+  OUTPUT_CSV="$T28/roster-output.csv" \
+  GH_REPO_CREATE="$T28/bin/gh" \
+  "$WRAPPER" "$T28/roster.csv" --workshop-org=vibeacademy > "$T28/stdout.log" 2>&1
+exit_code=$?
+set -e
+
+assert_eq "0" "$exit_code" "wrapper exits 0 with 8-column roster"
+assert_contains "api graphql" "$T28/gh.log" "GraphQL mutation invoked"
+assert_contains "PVT_abc123" "$T28/gh.log" "project node ID appears in mutation"
+assert_contains "granted WRITER" "$T28/stdout.log" "stdout confirms project WRITER grant"
+
+# ── Test 29: project board grant skipped when project_id empty (#166) ─────
+#
+# Rows with empty project_id (7-column or 8-column with blank cell) must
+# skip the GraphQL mutation — no API call, no error.
+
+echo ""
+echo "Test 29: project-board grant skipped when project_id empty"
+
+T29=$(new_tmp)
+make_stubs "$T29" "ok"
+
+cat > "$T29/bin/gh" <<EOF
+#!/usr/bin/env bash
+echo "gh \$*" >> "$T29/gh.log"
+case "\$1 \$2" in
+  "repo view") exit 1 ;;
+  "repo create") exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "$T29/bin/gh"
+
+cat > "$T29/roster.csv" <<EOF
+handle,github_user,email,cohort,neon_branch,github_full_repo,neon_project_id,project_id
+alice,alice-gh,alice@x.com,2026-05,alice,vibeacademy/alice,proj-alice-aaa,
+EOF
+
+set +e
+PATH="$T29/bin:$PATH" \
+  BILLING_ACCOUNT_ID="FAKE-BILLING" \
+  PROVISION_SCRIPT="$T29/bin/provision-gcp-project.sh" \
+  OUTPUT_CSV="$T29/roster-output.csv" \
+  GH_REPO_CREATE="$T29/bin/gh" \
+  "$WRAPPER" "$T29/roster.csv" --workshop-org=vibeacademy > "$T29/stdout.log" 2>&1
+exit_code=$?
+set -e
+
+assert_eq "0" "$exit_code" "wrapper exits 0 when project_id empty"
+if grep -q "api graphql" "$T29/gh.log"; then
+  echo -e "  ${RED}✗${NC} GraphQL mutation called despite empty project_id"
+  FAIL=$((FAIL + 1))
+else
+  echo -e "  ${GREEN}✓${NC} no GraphQL mutation when project_id empty (legacy compat)"
+  PASS=$((PASS + 1))
+fi
 
 echo ""
 echo "─────────────────────────────────"
