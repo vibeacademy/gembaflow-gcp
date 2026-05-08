@@ -244,6 +244,31 @@ The WIF provider resource name to paste into GitHub secrets is:
 projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/providers/github
 ```
 
+> **Common mistakes with `GCP_WORKLOAD_IDENTITY_PROVIDER`** — this secret causes
+> the majority of first-time bring-up failures. Three frequent errors:
+>
+> | Wrong value | Right value |
+> |---|---|
+> | Project **ID** (`my-project-abc`) | Project **number** (`123456789012`) |
+> | GCP billing account ID (`XXXXXX-XXXXXX-XXXXXX`) | Project number |
+> | Path with `//iam.googleapis.com/` prefix | Bare `projects/...` — no leading `//iam...` |
+> | Pool path (missing `/providers/...`) | Full provider path including `/providers/PROVIDER_ID` |
+>
+> The project number is different from the project ID. Fetch it with:
+>
+> ```bash
+> gcloud iam workload-identity-pools providers list \
+>   --location=global \
+>   --workload-identity-pool=github \
+>   --project=YOUR_PROJECT_ID \
+>   --format='value(name)'
+> ```
+>
+> The output is the full provider path, ready to paste into the GitHub secret.
+> If you see an `invalid_target` error in CI, see the
+> [GCP WIF invalid_target error](#gcp-wif-invalid_target-error) entry in
+> `docs/PATTERN-LIBRARY.md`.
+
 ### Step 5 (Alternative): Service Account Key (Workshop Shortcut)
 
 If WIF feels like too much setup for your timeline (e.g., for a workshop),

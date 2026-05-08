@@ -32,6 +32,7 @@
 
 13. [Workload Identity Federation vs Service Account Keys](#13-workload-identity-federation-vs-service-account-keys)
 14. [GCP: iam.serviceAccountUser Is Required to Deploy to Cloud Run](#14-gcp-iamserviceaccountuser-is-required-to-deploy-to-cloud-run)
+34. [GCP WIF invalid_target error](#34-gcp-wif-invalid_target-error)
 
 ### FastAPI / Python
 
@@ -1332,6 +1333,60 @@ single CI run had failed loud at the missing output. Conversion to
 fail-loud is therefore a *retroactive* defense: it doesn't fix the
 specific bugs the cascade hid, but it ensures the next bug surfaces
 within one run instead of months.
+
+---
+
+## 34. GCP WIF invalid\_target error
+
+**Gotcha:** The `google-github-actions/auth` step fails with:
+
+```
+Error: failed to generate Google Cloud federated token for
+//iam.googleapis.com/...: {"error":"invalid_target","error_description":
+"The target service indicated by the \"audience\" parameters is invalid.
+This might either be because the pool or provider is disabled or deleted
+or because it doesn't exist."}
+```
+
+The error lists three possible causes but gives no diagnostic to distinguish them.
+In practice, almost every first-time occurrence is a **malformed
+`GCP_WORKLOAD_IDENTITY_PROVIDER` secret**. Search for `invalid_target` to land here.
+
+**Three common causes and how to tell them apart:**
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Provider path contains your project **ID** (letters/hyphens) | Project number was confused with project ID | Use project **number** (12-digit integer) |
+| Provider path starts with a billing account ID (`XXXXXX-XXXXXX-XXXXXX`) | Billing account confused with project | Get the project number from `gcloud projects describe PROJECT_ID --format='value(projectNumber)'` |
+| Provider path starts with `//iam.googleapis.com/` | Leading prefix should be stripped | Remove the `//iam.googleapis.com/` prefix — the secret value starts with `projects/` |
+| Provider path ends at the pool (`.../workloadIdentityPools/github`) | Missing `/providers/PROVIDER_ID` segment | Append `/providers/github` (or whatever you named the provider) |
+
+**Correct format:**
+
+```
+projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID
+```
+
+Where `PROJECT_NUMBER` is the 12-digit integer (not the project ID string).
+
+**Fastest diagnostic — fetch the correct value directly:**
+
+```bash
+gcloud iam workload-identity-pools providers list \
+  --location=global \
+  --workload-identity-pool=github \
+  --project=YOUR_PROJECT_ID \
+  --format='value(name)'
+```
+
+The output is the full provider path in the correct format, ready to paste
+into the `GCP_WORKLOAD_IDENTITY_PROVIDER` GitHub secret.
+
+**See also:** `docs/PLATFORM-GUIDE.md` → Step 5 → the "Common mistakes" callout
+for a quick-reference table.
+
+Surfaced in the 2026-04-29 dry-run (`tck517/agile-flow-gcp`) finding #2 (#50).
+Every manual fork bring-up before #49 (bootstrap automation) hit this.
 
 ---
 

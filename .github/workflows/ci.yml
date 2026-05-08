@@ -136,7 +136,7 @@ jobs:
 
       - name: Install uv
         if: steps.check_python.outputs.skip != 'true'
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       - name: Lint with ruff
         if: steps.check_python.outputs.skip != 'true'

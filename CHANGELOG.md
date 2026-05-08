@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bumped `astral-sh/setup-uv` from `@v4` to `@v5` in `auto-fix.yml` and `ci.yml`
+  to use the Node 24 runtime ahead of the GitHub-enforced June 2026 cutover (#54)
+
 ## [0.9.0] - 2025-12-07
 
 Pre-upgrade baseline — the first tagged release of Agile Flow.

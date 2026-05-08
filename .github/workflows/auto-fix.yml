@@ -29,7 +29,7 @@ jobs:
 
       - name: Install uv
         if: steps.check_python.outputs.is_python == 'true'
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       - name: Run ruff fix
         if: steps.check_python.outputs.is_python == 'true'
