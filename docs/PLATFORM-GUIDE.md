@@ -266,7 +266,7 @@ projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/provide
 >
 > The output is the full provider path, ready to paste into the GitHub secret.
 > If you see an `invalid_target` error in CI, see the
-> [GCP WIF invalid_target error](#gcp-wif-invalid_target-error) entry in
+> [GCP WIF invalid\_target error](PATTERN-LIBRARY.md#34-gcp-wif-invalid_target-error) entry in
 > `docs/PATTERN-LIBRARY.md`.
 
 ### Step 5 (Alternative): Service Account Key (Workshop Shortcut)
