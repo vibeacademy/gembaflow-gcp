@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — Agile Flow GCP{% endblock %}
+
+{% block content %}
+  <hgroup>
+    <h1>Sign in</h1>
+    <p>Enter your email to receive a magic link.</p>
+  </hgroup>
+
+  {% if not firebase_project_id %}
+    <article>
+      <strong>Firebase not configured.</strong>
+      Set <code>FIREBASE_PROJECT_ID</code> to enable authentication.
+      Running in local dev mode — auth is bypassed.
+    </article>
+  {% else %}
+    <form id="login-form">
+      <label for="email">
+        Email address
+        <input type="email" id="email" name="email" placeholder="you@example.com" required autofocus>
+      </label>
+      <button type="submit" id="submit-btn">Send magic link</button>
+      <div id="status-msg" aria-live="polite"></div>
+    </form>
+
+    <!-- Firebase Web SDK (compat mode for simpler API surface) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script>
+      const firebaseConfig = { projectId: "{{ firebase_project_id }}", apiKey: "" };
+      // apiKey is intentionally omitted here; the Firebase JS SDK loads it
+      // dynamically from the authDomain. For the emailLink provider, the
+      // client only needs the projectId to construct the authDomain.
+      // In production, wire the Firebase Web API key via a meta tag or
+      // a separate /api/firebase-config endpoint so it's not hardcoded.
+    </script>
+    <script>
+      document.getElementById("login-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        const btn = document.getElementById("submit-btn");
+        const msg = document.getElementById("status-msg");
+
+        btn.disabled = true;
+        btn.textContent = "Sending…";
+        msg.textContent = "";
+
+        const actionCodeSettings = {
+          url: window.location.origin + "/auth/callback",
+          handleCodeInApp: true,
+        };
+
+        try {
+          // Firebase config with API key should come from your app config.
+          // For the workshop, set FIREBASE_API_KEY as a Cloud Run env var
+          // and pass it via a <meta> tag in base.html or a /api/firebase-config endpoint.
+          const apiKey = document.querySelector('meta[name="firebase-api-key"]')?.content || "";
+          if (!apiKey) {
+            msg.textContent = "Firebase API key not configured. Set FIREBASE_API_KEY env var.";
+            btn.disabled = false;
+            btn.textContent = "Send magic link";
+            return;
+          }
+          const app = firebase.initializeApp({ projectId: "{{ firebase_project_id }}", apiKey });
+          const auth = firebase.auth(app);
+          await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+          window.localStorage.setItem("emailForSignIn", email);
+          window.location.href = "/check-email";
+        } catch (err) {
+          msg.textContent = "Error: " + (err.message || "could not send magic link");
+          btn.disabled = false;
+          btn.textContent = "Send magic link";
+        }
+      });
+    </script>
+  {% endif %}
+{% endblock %}

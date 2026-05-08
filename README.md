@@ -277,6 +277,31 @@ it doesn't exist, create it with the same JSON shown above.
 In any Claude Code session (terminal or desktop), run `/mcp` to confirm
 servers are connected.
 
+## Authentication
+
+The framework ships with a **Firebase Authentication** integration for email-link
+(magic link) sign-in. Auth is **opt-in** — the default configuration runs without
+Firebase, treating every request as unauthenticated (suitable for local dev and
+unauthenticated workshop demos).
+
+To enable auth:
+
+1. Create a Firebase project and enable the **Email/Password** provider with
+   **Email link (passwordless sign-in)** turned on.
+2. Create a service account with the **Firebase Authentication Admin** role and
+   store the JSON key in Secret Manager as `firebase-admin-sa`.
+3. Add `FIREBASE_PROJECT_ID` to your Cloud Run service (via `gcloud run deploy
+   --set-env-vars` or a Secret Manager mount).
+4. Add your Cloud Run domain (and any PR preview subdomains) to
+   **Firebase Auth → Settings → Authorized domains**.
+
+When `FIREBASE_PROJECT_ID` is set, the middleware redirects unauthenticated
+requests to `/login`. Magic links are sent via Firebase and verified server-side
+using session cookies (HttpOnly, SameSite=Lax, 5-day expiry).
+
+See `docs/PATTERN-LIBRARY.md` for the full Firebase Auth recipe and gotchas.
+See `.env.example` for all configuration knobs.
+
 ## Customization
 
 ### Adding Project-Specific Context
