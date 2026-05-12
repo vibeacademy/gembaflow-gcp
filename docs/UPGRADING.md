@@ -10,6 +10,28 @@ For the full list of what is and is not touched during an upgrade, see
 
 ---
 
+## Maintainer vs. user paths
+
+This repo (`agile-flow-gcp`) is a downstream **track** fork of the founder
+framework `vibeacademy/agile-flow`. Two upgrade paths exist — one for
+end users of this track, and one for the fork's maintainer:
+
+| Path | Audience | How to invoke | What it does |
+|------|----------|---------------|--------------|
+| `/upgrade` | End users | Slash command | Pulls the latest tagged release of this track and opens a sync PR. |
+| `/pull-upstream` | Maintainer only | `scripts/pull-upstream.sh` | Pulls the founder framework into this fork while honoring `.agile-flow-overrides`. **Not exposed as a slash command here.** |
+
+If you are a customer of this template, **always use `/upgrade`**. The
+`/pull-upstream` slash command is intentionally absent from this repo —
+it is a maintainer-only contract used to roll founder-framework changes
+into the GCP track. Looking for it and not finding it is expected.
+
+The maintainer script `scripts/pull-upstream.sh` remains in the repo as
+the maintainer's contract; only the customer-facing slash command has
+been removed.
+
+---
+
 ## Check Your Current Version
 
 ```bash
