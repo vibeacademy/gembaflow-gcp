@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# template-sync.sh -- Sync framework files from vibeacademy/agile-flow releases.
+# template-sync.sh -- Sync framework files from vibeacademy/agile-flow-gcp releases.
 # Called by .github/workflows/template-sync.yml (workflow_dispatch only).
 # Guardrails:
 #   - Only syncs directories/files listed in syncDirectories (.agile-flow-version)
@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-UPSTREAM_REPO="vibeacademy/agile-flow"
+UPSTREAM_REPO="vibeacademy/agile-flow-gcp"
 VERSION_FILE=".agile-flow-version"
 
 ###############################################################################
