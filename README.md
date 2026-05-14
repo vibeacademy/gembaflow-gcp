@@ -404,6 +404,11 @@ Scope lock is a formal checkpoint that signals MVP scope is finalized and develo
 - Ensure tickets are moved to "In Review" column
 - Check that PRs are linked to issues
 
+## Release Operations
+
+- Release runbook (GCP track): [docs/release-process.md](docs/release-process.md)
+- Versioning policy: [VERSIONING.md](VERSIONING.md)
+
 ## Contributing
 
 This is a template project. To contribute:

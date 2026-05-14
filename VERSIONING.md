@@ -30,6 +30,8 @@ MAJOR.MINOR.PATCH
 
 ## Release Process
 
+Detailed maintainer runbook: [docs/release-process.md](docs/release-process.md).
+
 1. All changes land on `main` via pull request.
 2. When ready to release, a maintainer creates an annotated tag (`git tag -a vX.Y.Z`).
 3. Pushing the tag triggers the GitHub Release workflow, which publishes a release with the relevant `CHANGELOG.md` section.
