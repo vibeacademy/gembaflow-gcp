@@ -411,6 +411,14 @@ This is a template project. To contribute:
 2. Make improvements to agent definitions or commands
 3. Submit PR with clear description of changes
 
+### Maintainers: cutting releases
+
+Workshop participants on the GCP track consume framework updates from
+`vibeacademy/agile-flow-gcp` releases via `/upgrade`. The
+DevOps Engineer (GCP) owns the release process. See
+[`docs/RELEASE-PROCESS.md`](./docs/RELEASE-PROCESS.md) for the cadence
+policy, pre-publish checklist, and exact commands.
+
 ## Attribution
 
 Built with [Agile Flow](https://github.com/vibeacademy/agile-flow) by
