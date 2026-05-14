@@ -34,6 +34,10 @@ MAJOR.MINOR.PATCH
 2. When ready to release, a maintainer creates an annotated tag (`git tag -a vX.Y.Z`).
 3. Pushing the tag triggers the GitHub Release workflow, which publishes a release with the relevant `CHANGELOG.md` section.
 
+For the full GCP-track release procedure — cadence policy, pre-publish
+checklist, and rollback — see [`docs/RELEASE-PROCESS.md`](./docs/RELEASE-PROCESS.md).
+The DevOps Engineer (GCP) owns that process.
+
 ## Current Version
 
-See the latest [GitHub Release](https://github.com/vibeacademy/agile-flow/releases) or the top entry in [CHANGELOG.md](./CHANGELOG.md).
+See the latest [GitHub Release](https://github.com/vibeacademy/agile-flow-gcp/releases) or the top entry in [CHANGELOG.md](./CHANGELOG.md).
