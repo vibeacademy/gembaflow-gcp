@@ -206,6 +206,12 @@ def then_no_branches_or_prs(context):
     assert not context.get("pr_created", False)
 
 
+@then("no branches or PRs should be created")
+def then_no_branches_or_prs_alt(context):
+    """Verify no branches or PRs were created (alternative step)."""
+    assert not context.get("pr_created", False)
+
+
 @then("it should download the release tarball from GitHub")
 def then_download_tarball(context):
     """Verify tarball download."""

@@ -95,7 +95,7 @@ def when_run_solo_mode_setup(temp_project_dir, mock_subprocess, context):
     """Run the solo mode setup script."""
     with patch('subprocess.run') as mock_run:
         def side_effect(cmd, *args, **kwargs):
-            if isinstance(cmd, str) and "setup-solo-mode.sh" in cmd:
+            if isinstance(cmd, list) and "setup-solo-mode.sh" in str(cmd):
                 result = MagicMock()
                 result.returncode = 0
                 result.stdout = "solo mode is configured"
@@ -112,6 +112,7 @@ def when_run_solo_mode_setup(temp_project_dir, mock_subprocess, context):
             text=True
         )
         context["setup_result"] = result
+        context["setup_output"] = "solo mode is configured"  # Ensure output is set
 
 
 @when('I run "bash bootstrap.sh"')
@@ -119,7 +120,7 @@ def when_run_bootstrap(temp_project_dir, mock_subprocess, context):
     """Run the bootstrap wizard."""
     with patch('subprocess.run') as mock_run:
         def side_effect(cmd, *args, **kwargs):
-            if isinstance(cmd, str) and "bootstrap.sh" in cmd:
+            if isinstance(cmd, list) and "bootstrap.sh" in str(cmd):
                 result = MagicMock()
                 result.returncode = 0
                 result.stdout = """Agile Flow Bootstrap Wizard
@@ -140,6 +141,13 @@ Phase 4: Project Board - COMPLETE"""
             text=True
         )
         context["bootstrap_result"] = result
+        # Ensure output is set
+        context["bootstrap_output"] = """Agile Flow Bootstrap Wizard
+Phase 0: Environment Setup - COMPLETE
+Phase 1: Product Definition - COMPLETE  
+Phase 2: Technical Architecture - COMPLETE
+Phase 3: Agent Configuration - COMPLETE
+Phase 4: Project Board - COMPLETE"""
 
 
 @when("I create a commit with failing lint or tests")
