@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# template-sync.sh -- Sync framework files from vibeacademy/agile-flow-gcp releases.
+# template-sync.sh -- Sync framework files from upstream releases.
+# Reads the upstream repo from .agile-flow-version (falls back to vibeacademy/agile-flow).
 # Called by .github/workflows/template-sync.yml (workflow_dispatch only).
 # Guardrails:
 #   - Only syncs directories/files listed in syncDirectories (.agile-flow-version)
@@ -7,18 +8,18 @@
 #   - Uses unauthenticated GitHub API to fetch release metadata
 
 set -euo pipefail
-
-UPSTREAM_REPO="vibeacademy/agile-flow-gcp"
 VERSION_FILE=".agile-flow-version"
 
 ###############################################################################
-# 1. Read local version and syncDirectories
+# 1. Read local version, upstream repo, and syncDirectories
 ###############################################################################
 if [ ! -f "$VERSION_FILE" ]; then
   echo "ERROR: $VERSION_FILE not found."
   exit 1
 fi
 
+# Read upstream repo from config, fallback to vibeacademy/agile-flow for backward compatibility
+UPSTREAM_REPO=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('upstream', 'vibeacademy/agile-flow'))")
 LOCAL_VERSION=$(python3 -c "import json,sys; print(json.load(open('$VERSION_FILE'))['version'])")
 SYNC_DIRS=$(python3 -c "
 import json, sys
