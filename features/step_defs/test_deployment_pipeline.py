@@ -1,11 +1,9 @@
 """Step definitions for deployment pipeline feature."""
 
 import os
-import subprocess
 from unittest.mock import MagicMock, patch
 
 from pytest_bdd import given, scenario, then, when
-
 
 # Scenarios
 scenario("../deployment_pipeline.feature", "Deploy with Workload Identity Federation")
@@ -30,7 +28,9 @@ def given_gcp_project(context):
 def given_github_secrets_configured(context):
     """Mock required GitHub secrets."""
     os.environ["GCP_PROJECT_ID"] = "test-project-123"
-    os.environ["GCP_WORKLOAD_IDENTITY_PROVIDER"] = "projects/123/locations/global/workloadIdentityPools/pool/providers/provider"
+    os.environ["GCP_WORKLOAD_IDENTITY_PROVIDER"] = (
+        "projects/123/locations/global/workloadIdentityPools/pool/providers/provider"
+    )
     os.environ["GCP_SERVICE_ACCOUNT"] = "deploy@test-project-123.iam.gserviceaccount.com"
     context["secrets_configured"] = True
 
@@ -59,7 +59,9 @@ def given_project_id_secret(context):
 @given("GCP_WORKLOAD_IDENTITY_PROVIDER secret is configured")
 def given_workload_identity_secret(context):
     """Mock workload identity provider secret."""
-    os.environ["GCP_WORKLOAD_IDENTITY_PROVIDER"] = "projects/123/locations/global/workloadIdentityPools/pool/providers/provider"
+    os.environ["GCP_WORKLOAD_IDENTITY_PROVIDER"] = (
+        "projects/123/locations/global/workloadIdentityPools/pool/providers/provider"
+    )
     context["has_workload_identity"] = True
 
 
@@ -76,7 +78,7 @@ def given_service_account_key(context):
     # Remove workload identity env vars
     os.environ.pop("GCP_WORKLOAD_IDENTITY_PROVIDER", None)
     os.environ.pop("GCP_SERVICE_ACCOUNT", None)
-    
+
     os.environ["GCP_SA_KEY"] = '{"type": "service_account", "project_id": "test-project"}'
     context["has_sa_key"] = True
 
@@ -99,7 +101,9 @@ def given_upstream_repository(context):
 def given_all_secrets_configured(context):
     """Mock all deployment secrets are present."""
     os.environ["GCP_PROJECT_ID"] = "test-project-123"
-    os.environ["GCP_WORKLOAD_IDENTITY_PROVIDER"] = "projects/123/locations/global/workloadIdentityPools/pool/providers/provider"
+    os.environ["GCP_WORKLOAD_IDENTITY_PROVIDER"] = (
+        "projects/123/locations/global/workloadIdentityPools/pool/providers/provider"
+    )
     os.environ["GCP_SERVICE_ACCOUNT"] = "deploy@test-project-123.iam.gserviceaccount.com"
     context["all_secrets_configured"] = True
 
@@ -142,24 +146,24 @@ def given_trigger_deployment(context):
 @when("I push changes to the main branch")
 def when_push_to_main(mock_gcloud, mock_docker, context):
     """Simulate pushing changes to main branch."""
-    
+
     # Check if deployment should be skipped
     if not context.get("has_project_id", True):
         # Missing secrets - skip deployment
         context["workflow_triggered"] = True
         context["deployment_completed"] = False
         return
-        
+
     if not context.get("is_fork", True):
         # Upstream repository - don't trigger workflow
         context["workflow_triggered"] = False
         context["deployment_completed"] = False
         return
-    
+
     with patch('subprocess.run') as mock_run:
         def side_effect(cmd, *args, **kwargs):
             cmd_str = ' '.join(cmd) if isinstance(cmd, list) else cmd
-            
+
             if 'gcloud auth' in cmd_str:
                 result = MagicMock()
                 result.returncode = 0
@@ -178,7 +182,7 @@ def when_push_to_main(mock_gcloud, mock_docker, context):
                 return result
             elif 'docker push' in cmd_str:
                 result = MagicMock()
-                result.returncode = 0 
+                result.returncode = 0
                 result.stdout = "Image pushed to registry"
                 return result
             elif 'alembic upgrade' in cmd_str:
@@ -187,19 +191,19 @@ def when_push_to_main(mock_gcloud, mock_docker, context):
                 result.stdout = "Database migrations completed"
                 context["migrations_ran"] = True
                 return result
-            
+
             return MagicMock(returncode=0, stdout="")
-        
+
         mock_run.side_effect = side_effect
-        
+
         # Simulate successful workflow execution
         context["workflow_triggered"] = True
         context["deployment_completed"] = True
-        
+
         # Set migrations_ran if production DB is configured
         if context.get("has_production_db"):
             context["migrations_ran"] = True
-        
+
         # Ensure service URL is set for tests that check it
         if not context.get("service_url"):
             context["service_url"] = "https://app-test-project-123.run.app"

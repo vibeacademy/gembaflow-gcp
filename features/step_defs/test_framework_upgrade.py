@@ -2,11 +2,9 @@
 
 import json
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pytest_bdd import given, scenario, then, when
-
 
 # Scenarios
 scenario("../framework_upgrade.feature", "No updates available")
@@ -30,7 +28,7 @@ def given_valid_version_file(temp_project_dir, context):
     version_file = temp_project_dir / ".agile-flow-version"
     version_data = {
         "version": "1.0.0",
-        "upstream": "vibeacademy/agile-flow-gcp", 
+        "upstream": "vibeacademy/agile-flow-gcp",
         "syncDirectories": [
             "scripts/",
             ".github/workflows/",
@@ -102,40 +100,40 @@ def given_upstream_unreachable(context):
 @when("the template sync script runs")
 def when_sync_script_runs(temp_project_dir, mock_subprocess, mock_gh_cli, context):
     """Run the template sync script with appropriate mocking."""
-    
+
     with patch('subprocess.run') as mock_run:
         def side_effect(cmd, *args, **kwargs):
             if isinstance(cmd, list) and 'template-sync.sh' in str(cmd):
                 result = MagicMock()
-                
+
                 if not context.get("upstream_reachable", True):
                     # Simulate unreachable upstream
                     result.returncode = 1
                     result.stderr = "Error fetching from upstream"
                     context["sync_output"] = result.stderr
                     return result
-                
+
                 elif not context.get("updates_available", False):
                     # No updates available
                     result.returncode = 0
                     result.stdout = "No updates available"
                     context["sync_output"] = result.stdout
                     return result
-                
+
                 elif context.get("branch_exists", False):
                     # Branch already exists
                     result.returncode = 0
                     result.stdout = "Branch already exists on remote"
                     context["sync_output"] = result.stdout
                     return result
-                
+
                 elif context.get("files_match_upstream", False):
                     # Files already match
                     result.returncode = 0
                     result.stdout = "Already up to date"
                     context["sync_output"] = result.stdout
                     return result
-                
+
                 else:
                     # Successful sync with updates
                     result.returncode = 0
@@ -143,13 +141,16 @@ def when_sync_script_runs(temp_project_dir, mock_subprocess, mock_gh_cli, contex
                     context["sync_output"] = result.stdout
                     context["pr_created"] = True
                     return result
-            
+
             elif isinstance(cmd, list) and cmd[0] == 'gh':
                 if 'release' in cmd and 'view' in cmd:
                     # Mock release info
                     result = MagicMock()
                     result.returncode = 0
-                    result.stdout = f'{{"tag_name": "v{context.get("latest_version", "1.1.0")}", "tarball_url": "https://github.com/test/repo/archive/v1.1.0.tar.gz"}}'
+                    result.stdout = (
+                        f'{{"tag_name": "v{context.get("latest_version", "1.1.0")}", '
+                        '"tarball_url": "https://github.com/test/repo/archive/v1.1.0.tar.gz"}}'
+                    )
                     return result
                 elif 'pr' in cmd and 'create' in cmd:
                     # Mock PR creation
@@ -157,12 +158,12 @@ def when_sync_script_runs(temp_project_dir, mock_subprocess, mock_gh_cli, contex
                     result.returncode = 0
                     result.stdout = "https://github.com/user/repo/pull/123"
                     return result
-            
+
             # Default success
             return MagicMock(returncode=0, stdout="")
-        
+
         mock_run.side_effect = side_effect
-        
+
         # Simulate running the sync script
         result = subprocess.run(
             ["bash", "scripts/template-sync.sh"],
@@ -246,7 +247,8 @@ def then_update_version_file(temp_project_dir, context):
         assert version_file.exists()
 
 
-@then('it should commit changes with message "chore(sync): update Agile Flow framework to v{version}"')
+@then('it should commit changes with message "chore(sync): update Agile Flow '
+      'framework to v{version}"')
 def then_commit_changes(context):
     """Verify commit with proper message."""
     if context.get("pr_created"):

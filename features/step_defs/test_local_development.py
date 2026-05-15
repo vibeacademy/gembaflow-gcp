@@ -2,11 +2,9 @@
 
 import os
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pytest_bdd import given, scenario, then, when
-
 
 # Scenarios
 scenario("../local_development.feature", "Install development dependencies")
@@ -109,7 +107,7 @@ def when_run_uv_sync(mock_subprocess, context):
         result.returncode = 0
         result.stdout = "Resolved 55 packages in 663ms\nInstalled 55 packages\n"
         mock_run.return_value = result
-        
+
         context["uv_sync_result"] = subprocess.run(
             ["uv", "sync", "--extra", "dev"],
             capture_output=True,
@@ -128,7 +126,7 @@ def when_run_uvicorn(mock_uvicorn, context):
             b""
         )
         mock_popen.return_value = mock_process
-        
+
         # Simulate starting the server
         context["uvicorn_process"] = subprocess.Popen(
             ["uv", "run", "uvicorn", "app.main:app", "--reload", "--port", "8080"],
@@ -145,7 +143,7 @@ def when_run_lint(mock_subprocess, context):
         result.returncode = 0
         result.stdout = "All checks passed!"
         mock_run.return_value = result
-        
+
         context["lint_result"] = subprocess.run(
             ["uv", "run", "ruff", "check", "."],
             capture_output=True,
@@ -161,7 +159,7 @@ def when_run_format(mock_subprocess, context):
         result.returncode = 0
         result.stdout = "2 files reformatted"
         mock_run.return_value = result
-        
+
         context["format_result"] = subprocess.run(
             ["uv", "run", "ruff", "format", "."],
             capture_output=True,
@@ -177,7 +175,7 @@ def when_run_mypy(mock_subprocess, context):
         result.returncode = 0
         result.stdout = "Success: no issues found in 5 source files"
         mock_run.return_value = result
-        
+
         context["mypy_result"] = subprocess.run(
             ["uv", "run", "mypy", "app/"],
             capture_output=True,
@@ -193,7 +191,7 @@ def when_run_pytest(mock_subprocess, context):
         result.returncode = 0
         result.stdout = "=== 5 passed in 0.12s ==="
         mock_run.return_value = result
-        
+
         context["pytest_result"] = subprocess.run(
             ["uv", "run", "pytest"],
             capture_output=True,
@@ -212,7 +210,7 @@ Coverage report:
 app/main.py    95%   missing: 15-16
 Total coverage: 95%"""
         mock_run.return_value = result
-        
+
         context["pytest_coverage_result"] = subprocess.run(
             ["uv", "run", "pytest", "--cov=app", "--cov-report=term-missing"],
             capture_output=True,
@@ -226,9 +224,12 @@ def when_run_alembic_upgrade(mock_subprocess, context):
     with patch('subprocess.run') as mock_run:
         result = MagicMock()
         result.returncode = 0
-        result.stdout = "INFO  [alembic.runtime.migration] Running upgrade -> abc123, Initial migration"
+        result.stdout = (
+            "INFO  [alembic.runtime.migration] "
+            "Running upgrade -> abc123, Initial migration"
+        )
         mock_run.return_value = result
-        
+
         context["alembic_upgrade_result"] = subprocess.run(
             ["uv", "run", "alembic", "upgrade", "head"],
             capture_output=True,
@@ -242,9 +243,13 @@ def when_run_alembic_revision(temp_project_dir, mock_subprocess, context):
     with patch('subprocess.run') as mock_run:
         result = MagicMock()
         result.returncode = 0
-        result.stdout = "INFO  [alembic.autogenerate.compare] Detected added column 'user.email'\nGenerating migration file..."
+        result.stdout = (
+            "INFO  [alembic.autogenerate.compare] "
+            "Detected added column 'user.email'\\n"
+            "Generating migration file..."
+        )
         mock_run.return_value = result
-        
+
         # Create mock migration file
         versions_dir = temp_project_dir / "alembic" / "versions"
         migration_file = versions_dir / "001_add_new_feature.py"
@@ -252,7 +257,7 @@ def when_run_alembic_revision(temp_project_dir, mock_subprocess, context):
 \"\"\"Add new feature
 
 Revision ID: abc123
-Revises: 
+Revises:
 Create Date: 2024-01-01 12:00:00.000000
 
 \"\"\"
@@ -265,7 +270,7 @@ def upgrade():
 def downgrade():
     op.drop_column('user', 'email')
 """)
-        
+
         context["alembic_revision_result"] = subprocess.run(
             ["uv", "run", "alembic", "revision", "--autogenerate", "-m", "Add new feature"],
             capture_output=True,
@@ -285,7 +290,7 @@ Step 5/5 : CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"
 Successfully built abc123def
 Successfully tagged agile-flow-app:latest"""
         mock_run.return_value = result
-        
+
         context["docker_build_result"] = subprocess.run(
             ["docker", "build", "-t", "agile-flow-app", "."],
             capture_output=True,
@@ -329,7 +334,7 @@ def then_see_resolved_packages(context):
 def then_command_success(context):
     """Verify command completed successfully."""
     # Check any recent command result
-    for key in ["uv_sync_result", "lint_result", "format_result", "mypy_result", 
+    for key in ["uv_sync_result", "lint_result", "format_result", "mypy_result",
                 "pytest_result", "pytest_coverage_result", "alembic_upgrade_result",
                 "alembic_revision_result", "docker_build_result"]:
         result = context.get(key)
@@ -516,7 +521,7 @@ def then_generate_migration_file(temp_project_dir, context):
     """Verify new migration file is generated."""
     result = context.get("alembic_revision_result")
     assert result is not None
-    
+
     versions_dir = temp_project_dir / "alembic" / "versions"
     migration_files = list(versions_dir.glob("*.py"))
     assert len(migration_files) > 0
@@ -544,7 +549,7 @@ def then_contains_upgrade_downgrade(temp_project_dir, context):
     versions_dir = temp_project_dir / "alembic" / "versions"
     migration_files = list(versions_dir.glob("*.py"))
     assert len(migration_files) > 0
-    
+
     content = migration_files[0].read_text()
     assert "def upgrade():" in content
     assert "def downgrade():" in content

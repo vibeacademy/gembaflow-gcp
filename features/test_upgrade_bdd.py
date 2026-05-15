@@ -3,6 +3,7 @@
 from pytest_bdd import scenario
 from step_defs.test_framework_upgrade import *  # Import all step definitions
 
+
 # Define the scenarios
 @scenario("framework_upgrade.feature", "No updates available")
 def test_no_updates_available():

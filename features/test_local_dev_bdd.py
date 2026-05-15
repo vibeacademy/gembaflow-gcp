@@ -3,6 +3,7 @@
 from pytest_bdd import scenario
 from step_defs.test_local_development import *  # Import all step definitions
 
+
 # Define the scenarios
 @scenario("local_development.feature", "Install development dependencies")
 def test_install_development_dependencies():

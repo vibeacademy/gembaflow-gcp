@@ -1,7 +1,8 @@
 """BDD tests for framework bootstrap."""
 
 from pytest_bdd import scenario
-from step_defs.test_framework_bootstrap import *  # Import all step definitions
+from step_defs.test_framework_bootstrap import *  # noqa: F403
+
 
 # Define the scenarios
 @scenario("framework_bootstrap.feature", "Solo mode setup completes successfully")

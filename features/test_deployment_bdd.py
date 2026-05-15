@@ -3,6 +3,7 @@
 from pytest_bdd import scenario
 from step_defs.test_deployment_pipeline import *  # Import all step definitions
 
+
 # Define the scenarios
 @scenario("deployment_pipeline.feature", "Deploy with Workload Identity Federation")
 def test_deploy_with_workload_identity_federation():

@@ -2,11 +2,9 @@
 
 import os
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pytest_bdd import given, scenario, then, when
-
 
 # Scenarios
 scenario("../framework_bootstrap.feature", "Solo mode setup completes successfully")
@@ -48,11 +46,11 @@ def given_no_previous_setup(temp_project_dir, context):
 def given_solo_mode_complete(temp_project_dir, context):
     """Mock that solo mode setup has completed."""
     context["solo_mode_configured"] = True
-    
+
     # Create shell profile with AGILE_FLOW_SOLO_MODE
     shell_profile = temp_project_dir / ".bashrc"
     shell_profile.write_text("export AGILE_FLOW_SOLO_MODE=true\n")
-    
+
     # Create pre-push hook
     hooks_dir = temp_project_dir / ".git" / "hooks"
     hooks_dir.mkdir(exist_ok=True)
@@ -65,7 +63,7 @@ def given_solo_mode_complete(temp_project_dir, context):
 def given_bootstrap_complete(temp_project_dir, context):
     """Mock completed bootstrap setup."""
     context["bootstrap_complete"] = True
-    
+
     # Create bootstrap status file
     status_file = temp_project_dir / ".claude" / ".bootstrap-status"
     status_file.write_text("phase_0_complete=true\nphase_4_complete=true\n")
@@ -102,9 +100,9 @@ def when_run_solo_mode_setup(temp_project_dir, mock_subprocess, context):
                 context["setup_output"] = result.stdout
                 return result
             return MagicMock(returncode=0, stdout="")
-        
+
         mock_run.side_effect = side_effect
-        
+
         # Simulate running the script
         result = subprocess.run(
             ["bash", "scripts/setup-solo-mode.sh"],
@@ -125,16 +123,16 @@ def when_run_bootstrap(temp_project_dir, mock_subprocess, context):
                 result.returncode = 0
                 result.stdout = """Agile Flow Bootstrap Wizard
 Phase 0: Environment Setup - COMPLETE
-Phase 1: Product Definition - COMPLETE  
+Phase 1: Product Definition - COMPLETE
 Phase 2: Technical Architecture - COMPLETE
 Phase 3: Agent Configuration - COMPLETE
 Phase 4: Project Board - COMPLETE"""
                 context["bootstrap_output"] = result.stdout
                 return result
             return MagicMock(returncode=0, stdout="")
-        
+
         mock_run.side_effect = side_effect
-        
+
         result = subprocess.run(
             ["bash", "bootstrap.sh"],
             capture_output=True,
@@ -144,7 +142,7 @@ Phase 4: Project Board - COMPLETE"""
         # Ensure output is set
         context["bootstrap_output"] = """Agile Flow Bootstrap Wizard
 Phase 0: Environment Setup - COMPLETE
-Phase 1: Product Definition - COMPLETE  
+Phase 1: Product Definition - COMPLETE
 Phase 2: Technical Architecture - COMPLETE
 Phase 3: Agent Configuration - COMPLETE
 Phase 4: Project Board - COMPLETE"""
@@ -156,7 +154,7 @@ def when_create_bad_commit(temp_project_dir, context):
     # Create a file with intentional issues
     bad_file = temp_project_dir / "app" / "bad_code.py"
     bad_file.write_text("import os\n# Bad code with unused import\n")
-    
+
     # Set environment to simulate failing tests
     os.environ["FAIL_TESTS"] = "true"
     context["bad_commit_created"] = True
@@ -175,9 +173,9 @@ def when_attempt_push(temp_project_dir, mock_git, context):
                 context["push_output"] = result.stderr
                 return result
             return MagicMock(returncode=0, stdout="")
-        
+
         mock_run.side_effect = side_effect
-        
+
         result = subprocess.run(
             ["git", "push", "origin", "main"],
             capture_output=True,

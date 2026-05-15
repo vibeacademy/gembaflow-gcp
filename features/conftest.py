@@ -1,10 +1,9 @@
 """Shared pytest-bdd fixtures and configuration for BDD tests."""
 
 import os
-import subprocess
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,7 +14,7 @@ def temp_project_dir() -> Generator[Path, None, None]:
     """Create a temporary directory that mimics an Agile Flow project."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
-        
+
         # Create basic project structure
         (project_path / ".git").mkdir()
         (project_path / "scripts").mkdir()
@@ -25,7 +24,7 @@ def temp_project_dir() -> Generator[Path, None, None]:
         (project_path / "features").mkdir()
         (project_path / "alembic").mkdir()
         (project_path / "alembic" / "versions").mkdir()
-        
+
         # Create basic files
         (project_path / "pyproject.toml").write_text("""
 [project]
@@ -36,9 +35,9 @@ requires-python = ">=3.12"
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-bdd>=7.0"]
 """)
-        
+
         (project_path / "CLAUDE.md").write_text("# Test Project")
-        
+
         (project_path / ".agile-flow-version").write_text("""
 {
   "version": "1.0.0",
@@ -50,30 +49,30 @@ dev = ["pytest>=8.0", "pytest-bdd>=7.0"]
   ]
 }
 """)
-        
+
         (project_path / "bootstrap.sh").write_text("""#!/bin/bash
 echo "Agile Flow Bootstrap Wizard"
 echo "Phase 0: Environment Setup"
-echo "Phase 1: Product Definition"  
+echo "Phase 1: Product Definition"
 echo "Phase 2: Technical Architecture"
 echo "Phase 3: Agent Configuration"
 echo "Phase 4: Project Board"
 """)
         (project_path / "bootstrap.sh").chmod(0o755)
-        
+
         (project_path / "scripts" / "setup-solo-mode.sh").write_text("""#!/bin/bash
 echo "Configuring solo mode"
 export AGILE_FLOW_SOLO_MODE=true
 echo "solo mode is configured"
 """)
         (project_path / "scripts" / "setup-solo-mode.sh").chmod(0o755)
-        
+
         (project_path / "scripts" / "template-sync.sh").write_text("""#!/bin/bash
 echo "Checking for updates..."
 echo "No updates available"
 """)
         (project_path / "scripts" / "template-sync.sh").chmod(0o755)
-        
+
         (project_path / "scripts" / "hooks").mkdir()
         (project_path / "scripts" / "hooks" / "pre-push").write_text("""#!/bin/bash
 # Pre-push hook
@@ -81,7 +80,7 @@ echo "Running pre-push checks..."
 exit 0
 """)
         (project_path / "scripts" / "hooks" / "pre-push").chmod(0o755)
-        
+
         # Create app structure
         (project_path / "app" / "__init__.py").write_text("")
         (project_path / "app" / "main.py").write_text("""
@@ -93,7 +92,7 @@ app = FastAPI()
 def read_root():
     return {"message": "Hello World"}
 """)
-        
+
         # Create Dockerfile
         (project_path / "Dockerfile").write_text("""
 FROM python:3.12-slim
@@ -113,16 +112,16 @@ def mock_subprocess():
     with patch('subprocess.run') as mock_run, \
          patch('subprocess.check_output') as mock_check_output, \
          patch('subprocess.Popen') as mock_popen:
-        
+
         # Default successful responses
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
         mock_check_output.return_value = b"mocked output"
-        
+
         mock_process = MagicMock()
         mock_process.communicate.return_value = (b"stdout", b"stderr")
         mock_process.returncode = 0
         mock_popen.return_value = mock_process
-        
+
         yield {
             'run': mock_run,
             'check_output': mock_check_output,
@@ -151,13 +150,13 @@ def mock_git():
                     result.returncode = 0
                     result.stdout = ""
                     return result
-            
+
             # Default successful response
             result = MagicMock()
             result.returncode = 0
             result.stdout = ""
             return result
-            
+
         mock_run.side_effect = side_effect
         yield mock_run
 
@@ -183,13 +182,13 @@ def mock_gh_cli():
                     result.returncode = 0
                     result.stdout = "Repository info"
                     return result
-            
+
             # Default successful response
             result = MagicMock()
             result.returncode = 0
             result.stdout = ""
             return result
-            
+
         mock_run.side_effect = side_effect
         yield mock_run
 
@@ -204,13 +203,13 @@ def mock_gcloud():
                 result.returncode = 0
                 result.stdout = "Mocked gcloud output"
                 return result
-            
-            # Default successful response  
+
+            # Default successful response
             result = MagicMock()
             result.returncode = 0
             result.stdout = ""
             return result
-            
+
         mock_run.side_effect = side_effect
         yield mock_run
 
@@ -231,13 +230,13 @@ def mock_docker():
                     result.returncode = 0
                     result.stdout = "Image pushed successfully"
                     return result
-            
+
             # Default successful response
             result = MagicMock()
             result.returncode = 0
             result.stdout = ""
             return result
-            
+
         mock_run.side_effect = side_effect
         yield mock_run
 
