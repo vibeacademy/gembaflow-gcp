@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agile Flow /upgrade Feature - Acceptance Test Report</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f5f5; 
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .header { 
+            border-bottom: 3px solid #007acc; 
+            padding-bottom: 20px; 
+            margin-bottom: 30px; 
+        }
+        h1 { 
+            color: #333; 
+            margin: 0; 
+            font-size: 2.2em; 
+        }
+        .meta { 
+            color: #666; 
+            font-size: 0.9em; 
+            margin-top: 10px; 
+        }
+        .summary { 
+            background: #e8f5e8; 
+            border: 1px solid #4caf50; 
+            border-radius: 6px; 
+            padding: 20px; 
+            margin: 20px 0; 
+        }
+        .summary.fail { 
+            background: #ffe8e8; 
+            border-color: #f44336; 
+        }
+        .repo-section { 
+            margin: 30px 0; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+        }
+        .repo-header { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            font-weight: bold; 
+            font-size: 1.2em; 
+            border-bottom: 1px solid #ddd; 
+        }
+        .test-case { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-left: 4px solid #ddd; 
+            background: #fafafa; 
+        }
+        .test-case.pass { border-left-color: #4caf50; background: #f9fff9; }
+        .test-case.fail { border-left-color: #f44336; background: #fff9f9; }
+        .status { 
+            font-weight: bold; 
+            padding: 4px 12px; 
+            border-radius: 4px; 
+            color: white; 
+            font-size: 0.9em; 
+        }
+        .status.pass { background: #4caf50; }
+        .status.fail { background: #f44336; }
+        .evidence { 
+            background: #f4f4f4; 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+            font-family: 'Monaco', 'Menlo', monospace; 
+            font-size: 0.85em; 
+            overflow-x: auto; 
+            white-space: pre-wrap; 
+        }
+        .test-details { margin: 10px 0; }
+        .test-details strong { color: #333; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0; 
+        }
+        th, td { 
+            text-align: left; 
+            padding: 12px; 
+            border-bottom: 1px solid #ddd; 
+        }
+        th { 
+            background: #f8f9fa; 
+            font-weight: 600; 
+        }
+        .tester-badge { 
+            background: #007acc; 
+            color: white; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 0.8em; 
+            font-weight: bold; 
+        }
+        .verdict { 
+            font-size: 1.3em; 
+            font-weight: bold; 
+            text-align: center; 
+            padding: 20px; 
+            margin: 30px 0; 
+            border-radius: 8px; 
+        }
+        .verdict.pass { background: #e8f5e8; color: #2e7d32; border: 2px solid #4caf50; }
+        .verdict.fail { background: #ffe8e8; color: #c62828; border: 2px solid #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Agile Flow /upgrade Feature - Acceptance Test Report</h1>
+            <div class="meta">
+                <span class="tester-badge">QA TESTER</span>
+                <strong>Date:</strong> May 16, 2026 06:59 AM<br>
+                <strong>Tester:</strong> va-tester (Agile Flow QA Testing Agent)<br>
+                <strong>Test Type:</strong> Acceptance Testing<br>
+                <strong>Scope:</strong> /upgrade feature authentication pre-flight checks
+            </div>
+        </div>
+
+        <div class="summary">
+            <h2>Executive Summary</h2>
+            <table>
+                <tr>
+                    <th>Repository</th>
+                    <th>Tests Run</th>
+                    <th>Passed</th>
+                    <th>Failed</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>agile-flow-gcp</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td><span class="status pass">PASS</span></td>
+                </tr>
+                <tr>
+                    <td>agile-flow</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td>0</td>
+                    <td><span class="status pass">PASS</span></td>
+                </tr>
+            </table>
+            <p><strong>Overall Result:</strong> All authentication pre-flight checks are properly implemented in both repositories.</p>
+        </div>
+
+        <div class="repo-section">
+            <div class="repo-header">Repository: agile-flow-gcp</div>
+            <div style="padding: 20px;">
+                
+                <div class="test-case pass">
+                    <h3>Test 1: Git Repository Access</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify repository access and latest code retrieval<br>
+                        <strong>Expected:</strong> Successfully checkout main branch and pull latest changes<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">Git reset to origin/main completed successfully
+HEAD is now at caf41c1 fix(upgrade): add gh auth pre-flight check (#209)
+Exit code: 0</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 2: Template Sync Script Existence</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify scripts/template-sync.sh exists and is executable<br>
+                        <strong>Expected:</strong> File exists with executable permissions<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">-rwxr-xr-x@ 1 teddykim  staff  9638 May 16 07:02 scripts/template-sync.sh</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 3: Authentication Pre-flight Check Implementation</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify auth pre-flight check code is present in template-sync.sh<br>
+                        <strong>Expected:</strong> Script contains gh CLI authentication validation<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">Found authentication checks at lines 23-29:
+# Check if gh is authenticated
+if ! gh auth status >/dev/null 2>&1; then
+  echo "ERROR: GitHub CLI is not authenticated."
+  echo "Please run: gh auth login"
+  echo "Then retry the upgrade command."
+  exit 1
+fi</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 4: Authentication Pre-flight Check Functionality</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify pre-flight check fails fast with clear error message when not authenticated<br>
+                        <strong>Expected:</strong> Script exits with error code 1 and helpful message<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">Exit Code: 1
+Output: ERROR: GitHub CLI is not authenticated.
+Please run: gh auth login
+Then retry the upgrade command.</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 5: Configuration File Validation</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify .agile-flow-version exists and contains valid JSON with syncDirectories<br>
+                        <strong>Expected:</strong> Valid JSON file with required fields<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">{
+    "version": "1.0.0",
+    "upstream": "vibeacademy/agile-flow-gcp",
+    "installedAt": null,
+    "distribution": "template",
+    "syncDirectories": [
+        ".claude/agents",
+        ".claude/commands",
+        ".claude/hooks",
+        ".claude/skills",
+        "scripts",
+        "starters"
+    ]
+}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="repo-section">
+            <div class="repo-header">Repository: agile-flow</div>
+            <div style="padding: 20px;">
+                
+                <div class="test-case pass">
+                    <h3>Test 1: Git Repository Access</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify repository access and latest code retrieval<br>
+                        <strong>Expected:</strong> Successfully checkout main branch and pull latest changes<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">Successfully pulled latest changes:
+From github.com:vibeacademy/agile-flow
+ * branch            main       -> FETCH_HEAD
+   ce50a32..4f1a3e3  main       -> origin/main
+Updating ce50a32..4f1a3e3
+Fast-forward
+ scripts/template-sync.sh | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 2: Template Sync Script Existence</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify scripts/template-sync.sh exists and is executable<br>
+                        <strong>Expected:</strong> File exists with executable permissions<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">-rwxr-xr-x@ 1 teddykim  staff  14237 May 16 07:02 scripts/template-sync.sh</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 3: Authentication Pre-flight Check Implementation</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify auth pre-flight check code is present in template-sync.sh<br>
+                        <strong>Expected:</strong> Script contains gh CLI authentication validation<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">Found authentication checks at lines 26-32:
+# Check if gh is authenticated
+if ! gh auth status >/dev/null 2>&1; then
+  echo "ERROR: GitHub CLI is not authenticated."
+  echo "Please run: gh auth login"
+  echo "Then retry the upgrade command."
+  exit 1
+fi</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 4: Authentication Pre-flight Check Functionality</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify pre-flight check fails fast with clear error message when not authenticated<br>
+                        <strong>Expected:</strong> Script exits with error code 1 and helpful message<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">Exit Code: 1
+Output: ERROR: GitHub CLI is not authenticated.
+Please run: gh auth login
+Then retry the upgrade command.</div>
+                </div>
+
+                <div class="test-case pass">
+                    <h3>Test 5: Configuration File Validation</h3>
+                    <div class="test-details">
+                        <strong>Objective:</strong> Verify .agile-flow-version exists and contains valid JSON with syncDirectories<br>
+                        <strong>Expected:</strong> Valid JSON file with required fields<br>
+                        <strong>Status:</strong> <span class="status pass">PASS</span>
+                    </div>
+                    <div class="evidence">{
+    "version": "0.1.0",
+    "installedAt": null,
+    "distribution": "template",
+    "syncDirectories": [
+        ".claude/agents",
+        ".claude/commands",
+        ".claude/hooks",
+        ".claude/skills",
+        "scripts",
+        "starters"
+    ]
+}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="verdict pass">
+            ✅ VERDICT: PASS
+            <br><br>
+            The /upgrade feature authentication pre-flight checks are properly implemented in both repositories.
+            All tests passed successfully.
+        </div>
+
+        <h2>Test Summary</h2>
+        <p><strong>What was tested:</strong></p>
+        <ul>
+            <li>Git repository access and code synchronization</li>
+            <li>Template sync script existence and permissions</li>
+            <li>Authentication pre-flight check implementation</li>
+            <li>Pre-flight check functionality and error handling</li>
+            <li>Configuration file validation (.agile-flow-version)</li>
+        </ul>
+
+        <p><strong>Key Findings:</strong></p>
+        <ul>
+            <li>✅ Both repositories successfully pulled the merged fix (PR #209)</li>
+            <li>✅ scripts/template-sync.sh exists and is executable in both repos</li>
+            <li>✅ Authentication pre-flight checks are properly implemented</li>
+            <li>✅ Pre-flight checks fail fast with clear, actionable error messages</li>
+            <li>✅ .agile-flow-version files contain valid JSON with required syncDirectories</li>
+            <li>✅ Error messages provide clear remediation instructions (gh auth login)</li>
+        </ul>
+
+        <p><strong>Recommendations:</strong></p>
+        <ul>
+            <li>✅ Feature is ready for production use</li>
+            <li>✅ Error handling meets user experience standards</li>
+            <li>✅ No additional changes needed</li>
+        </ul>
+
+        <hr style="margin: 40px 0;">
+        <footer style="text-align: center; color: #666; font-size: 0.9em;">
+            <p>Generated by Agile Flow QA Testing Agent (va-tester) | Report ID: upgrade-acceptance-test-2026-05-16</p>
+        </footer>
+    </div>
+</body>
+</html>
