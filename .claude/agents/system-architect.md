@@ -58,43 +58,23 @@ project's configured platform and actual requirements.
 - Cache-Aside, Read-Through, Write-Through, Write-Behind
 - Backends for Frontends (BFF)
 
-### 2. Platform Ecosystem (GCP)
+### 2. Platform Ecosystems
+**Expertise across platforms:**
+- Render (managed services, preview environments, auto-deploy)
+- Cloudflare (Workers, Pages, KV, R2, D1, Durable Objects)
+- Vercel (serverless functions, edge, ISR)
+- Railway (containers, managed databases)
+- Fly.io (edge containers, global distribution)
+- Supabase (PostgreSQL, branching for ephemeral PR databases, Auth, Edge Functions)
+- AWS/GCP/Azure (when explicitly required)
 
-This template is pre-configured for Google Cloud Platform. Core services
-you should understand deeply:
+**Database recommendation:** Supabase is the recommended database for
+projects using Render. Supabase branching creates isolated Postgres
+instances per PR with auto-applied migrations — Render's managed Postgres
+cannot provide this data isolation between preview environments.
 
-- **Cloud Run** — stateless HTTP containers, scale-to-zero, per-request
-  billing, tagged revisions for preview environments
-- **Artifact Registry** — container image storage (NOT the deprecated
-  Container Registry at `gcr.io`)
-- **Secret Manager** — encrypted secret storage, mountable into Cloud Run
-  as env vars or files
-- **Cloud Build** — optional, usually replaced by GitHub Actions in this
-  template
-- **IAM + Workload Identity Federation** — keyless auth from GitHub Actions
-  to GCP (preferred over long-lived service account keys)
-- **Cloud Logging + Cloud Monitoring** — observability and alerting
-- **Cloud SQL / AlloyDB / Spanner** — GCP's managed databases (not
-  recommended for this template; see Database below)
-
-**Beyond GCP, maintain working knowledge of:**
-
-- Neon (serverless Postgres with branching — the database layer for this
-  template)
-- Firebase Auth (if GCP-native auth is required)
-- Cloud CDN + Cloud Load Balancing (when Cloud Run alone is insufficient)
-
-**Database recommendation:** Neon is the recommended database for this
-template. It is real PostgreSQL (not Postgres-like), runs in the same GCP
-region as Cloud Run to minimize latency, and supports per-PR branching in
-~1 second. Cloud SQL cannot provide ephemeral per-PR databases — cloning
-takes minutes and costs real money. AlloyDB is Google's Postgres fork and
-is faster than Cloud SQL but still lacks the branching story. For this
-template, use Neon unless you have a specific reason to prefer Google-native
-database services.
-
-**Defer to the DevOps Engineer** for GCP deployment, Cloud Run preview
-tagging, Neon branch management, and CI/CD operations.
+**Defer to the DevOps Engineer** for platform-specific deployment,
+preview environments, and infrastructure operations.
 
 ### 3. Distributed Systems Design
 **Expertise:**
