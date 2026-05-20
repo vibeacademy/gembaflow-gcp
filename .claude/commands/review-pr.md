@@ -89,6 +89,24 @@ Any of these findings result in an immediate NO-GO recommendation:
 | Direct commits to main | Process — all changes go through feature branches |
 | Missing tests for new functionality | Quality — untested code is unverifiable |
 | Type errors or unresolved imports | Quality — code does not compile/run correctly |
+| Architecture-level changes without ADR reference | Governance — architectural decisions must be explicit and traceable |
+
+### Architecture ADR Check
+
+Flag as **NO-GO** when a PR changes architecture-level files without a referenced ADR in the PR body/checklist.
+
+Treat these paths as architecture-level for this repository:
+
+- `scripts/template-sync.sh`
+- `scripts/lib/overrides.sh`
+- `scripts/pull-upstream.sh`
+- `.github/workflows/**`
+
+Reviewer check:
+
+1. Inspect changed files for any path above.
+2. If matched, verify the PR explicitly references an ADR (for example `ADR-001`, `docs/adr/0001-...`, or a new ADR in `docs/adr/`).
+3. If no ADR reference exists, mark **NO-GO** and request ADR linkage before approval.
 
 ### When to Request Changes vs Comment
 
