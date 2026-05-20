@@ -148,7 +148,14 @@ Once bootstrap is complete, use the standard workflow:
 /evaluate-feature       # Assess feature requests
 /release-decision       # Go/no-go for releases
 /architect-review       # Design guidance
+
+# Feedback
+/report-issue           # Report issues to upstream template maintainers
 ```
+
+Use `/report-issue` to send structured bug reports or suggestions back to the
+upstream Agile Flow maintainers. This creates a feedback loop that helps improve
+the framework for everyone. See [`.claude/commands/report-issue.md`](.claude/commands/report-issue.md) for details.
 
 ## Project Structure
 
@@ -415,6 +422,14 @@ This is a template project. To contribute:
 1. Fork the repository
 2. Make improvements to agent definitions or commands
 3. Submit PR with clear description of changes
+
+### Maintainers: cutting releases
+
+Workshop participants on the GCP track consume framework updates from
+`vibeacademy/agile-flow-gcp` releases via `/upgrade`. The
+DevOps Engineer (GCP) owns the release process. See
+[`docs/RELEASE-PROCESS.md`](./docs/RELEASE-PROCESS.md) for the cadence
+policy, pre-publish checklist, and exact commands.
 
 ## Attribution
 
