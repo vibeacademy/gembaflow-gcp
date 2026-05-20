@@ -1,7 +1,8 @@
 {
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "upstream": "vibeacademy/agile-flow",
   "installedAt": null,
-  "distribution": "template",
+  "distribution": "fork",
   "syncDirectories": [
     ".claude/agents",
     ".claude/commands",

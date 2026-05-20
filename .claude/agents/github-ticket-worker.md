@@ -44,34 +44,26 @@ Example fields to populate:
 
 **CRITICAL: GitHub Account Identity**
 
-Verify the active account before any GitHub mutation. Do **NOT** run
-`gh auth switch` — that command mutates global gh state visible to every
-terminal the user has open, and it is wrong in solo mode where no bot
-accounts exist.
+This agent MUST operate as the designated worker bot account. Before ANY GitHub operations:
 
 ```bash
-gh auth status   # Verify; do not switch.
+# Switch to worker bot account (replace {worker-bot} with your org's worker account)
+gh auth switch --user {worker-bot}
+
+# Verify correct account is active
+gh auth status
 ```
 
-If the active account is not appropriate for the operation:
-- **Solo mode** (`AGILE_FLOW_SOLO_MODE=true`, the default for new forks):
-  the user's personal account IS the appropriate account — proceed.
-- **Multi-bot mode**: the `.claude/hooks/ensure-github-account.sh`
-  PreToolUse hook switches accounts automatically before `gh pr create`
-  and `gh pr review`. For other gh operations (issue create, label
-  create, branch protection), STOP and ask the user — do not change
-  the active account from agent context.
-
-If `gh auth status` shows no authenticated account at all, STOP and
-ask the user to run `gh auth login` (solo) or
-`scripts/setup-accounts.sh` (multi-bot).
-
 **Why this matters:**
-- Git commits and PRs are properly attributed
-- Separation of duties: worker creates PRs, reviewer reviews, human merges
-- Human can distinguish actions in the audit trail
-- Solo-mode users have one personal account; the framework must not
-  attempt to switch to bots that don't exist
+- Git commits and PRs are properly attributed to the worker bot
+- Separation of duties: worker bot creates PRs, reviewer bot reviews, human merges
+- Human can distinguish between worker and reviewer actions in the audit trail
+
+<!--
+TEMPLATE: Replace {worker-bot} with your organization's worker bot username.
+Example: va-worker, myorg-worker, etc.
+See .claude/README.md for bot account setup instructions.
+-->
 
 **GitHub CLI (`gh`)**: Use the `gh` CLI for all GitHub operations.
 
@@ -121,15 +113,8 @@ ask the user to run `gh auth login` (solo) or
 7. **Commit**: Make atomic, well-described commits
 8. **Push Branch**: `git push origin feature/issue-{number}-description`
 9. **Create PR**: Link to issue, provide detailed description
-10. **Probe evidence page** (preview deploys only): After the preview deploy succeeds,
-    `curl -s <preview-url>/healthz/evidence | jq .` and check `passed: true`.
-    - If green: proceed normally.
-    - If red: attempt **one repair** (fix the failing probe or its implementation,
-      re-push). If still red after one attempt, post a PR comment listing the failing
-      section(s) and what the reviewer should verify manually, then hand off.
-    - Do NOT block PR creation on a red evidence page — the reviewer needs to see it.
-11. **Move to In Review**: Update project board status to "In Review"
-12. **Your work is done**: pr-reviewer agent will review, then human will merge
+10. **Move to In Review**: Update project board status to "In Review"
+11. **Your work is done**: pr-reviewer agent will review, then human will merge
 
 **YOU CANNOT:**
 - Merge pull requests (only human does this)
@@ -232,101 +217,56 @@ there is no linked issue:
 - Create PRs without moving ticket to "In Review" (when a ticket is linked)
 - Work on multiple tickets simultaneously (one at a time)
 
-## Stack Guardrails (GCP Cloud Run + Neon + FastAPI)
+## Stack Guardrails (Render + Supabase)
 
-Before implementing any of the following, read `docs/PATTERN-LIBRARY.md`
-for known pitfalls and working code samples:
+Before implementing any of the following, read `docs/PATTERN-LIBRARY.md` for
+known pitfalls and working code samples:
+- Supabase auth (magic links, redirects, callbacks)
+- Render deployment config (render.yaml, env vars, preview environments)
+- GitHub Actions workflows (reusable workflows, secret gating)
+- next.config.ts changes (output mode, rewrites, redirects)
 
-- Cloud Run deployment (Dockerfile, uvicorn bind address, env vars,
-  revisions, tagged previews)
-- Neon branching (PR branches, pooled connections, cold starts)
-- FastAPI + SQLModel (connection pooling, mypy ergonomics, Alembic
-  migrations)
-- HTMX (fragment responses, hx-target/hx-swap contracts)
-- GitHub Actions workflows (Workload Identity Federation, reusable
-  workflows)
+The 5 most dangerous silent failures are listed below. All return success
+signals while doing the wrong thing.
 
-The most dangerous silent failures on this stack are listed below. All
-return success signals while doing the wrong thing.
+1. **Supabase JWT ref routing.** Supabase routes requests by the `ref` claim
+   in the API key JWT, NOT by the URL. Changing `SUPABASE_URL` to a branch URL
+   while keeping production keys silently routes to production. You must update
+   ALL THREE variables (`SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_KEY`)
+   with branch-specific values. The `service_role_key` must be fetched from the
+   Supabase Management API — the standard GitHub Action only returns `anon_key`.
 
-1. **Uvicorn bound to localhost.** Uvicorn binds to `127.0.0.1` by
-   default. Cloud Run routes traffic via a proxy that cannot reach
-   localhost, and the container fails health checks with "starting but
-   not ready" — no useful error. The Dockerfile MUST pass
-   `--host 0.0.0.0 --port 8080` to uvicorn. This works correctly in
-   local `docker run` if you publish the port, so you only notice it
-   on deploy.
+2. **Render env var updates require redeploy.** The Render API returns 200 when
+   you update an environment variable, and the dashboard shows the new value,
+   but the running container never sees it. Always trigger a redeploy after
+   updating env vars via API.
 
-2. **Cloud Run env var updates create a new revision.** Updating env
-   vars via `gcloud run services update --update-env-vars=...` creates
-   a new revision and routes traffic to it. Updating via the Console
-   without deploying stages the change but never applies it. Always
-   verify with `gcloud run services describe` after an update.
+3. **Auth `site_url` is base URL only.** When configuring Supabase auth for
+   preview environments, `site_url` must be the base URL (e.g.,
+   `https://app-pr-42.onrender.com`), NOT the callback path. Put callback
+   paths in `uri_allow_list` instead. The callback path differs by framework:
+   Next.js uses `/api/auth/callback`, FastAPI uses `/auth/callback`.
 
-3. **Cloud Run sits behind a proxy.** Server-side redirect code must
-   read `X-Forwarded-Host` and `X-Forwarded-Proto` headers to construct
-   the external origin. Using `request.url.hostname` or
-   `request.base_url` returns Cloud Run's internal origin, silently
-   breaking redirects. This works correctly in local dev, so you won't
-   catch it until deployment. Alternative: run uvicorn with
-   `--proxy-headers --forwarded-allow-ips="*"`.
+4. **Render reverse proxy headers.** Server-side redirect code must read
+   `X-Forwarded-Host` and `X-Forwarded-Proto` headers to construct the
+   external origin. Using `request.url` or `new URL(path, request.url)`
+   returns Render's internal origin (`localhost:10000`), silently breaking
+   redirects. This works correctly in local dev, so you won't catch it until
+   deployment.
 
-4. **Secret Manager env-var mount captures value at deploy time.**
-   Cloud Run lets you mount secrets two ways: as env vars
-   (`--set-secrets=FOO=foo:latest`) or as files. Env var mounts capture
-   the secret value at deploy time. Rotating the underlying secret does
-   NOT update the running revision — you have to redeploy. For secrets
-   that rotate, mount as a file instead.
+5. **Reusable workflows need `workflow_call` trigger.** If a GitHub Actions
+   workflow is called by another workflow via `uses: ./.github/workflows/ci.yml`,
+   the called workflow MUST have `workflow_call:` in its `on:` block. Without
+   it, GitHub silently shows "0 jobs" with a vague error. This can go undetected
+   for weeks.
 
-5. **Neon cold starts break the first request after idle.** Neon
-   compute scales to zero after ~5 minutes of inactivity. The first
-   query after suspend takes 500ms-2s while the compute instance wakes
-   up. Always use Neon's pooled connection string (`db_url_pooled`)
-   from Cloud Run. Set `pool_pre_ping=True` on the SQLAlchemy engine so
-   dead connections are detected and replaced on checkout.
-
-6. **Migrations must run BEFORE the new revision takes traffic.** If
-   you deploy a new container that expects a new column before running
-   Alembic, every request hits `UndefinedColumnError` until you run the
-   migration. The workflows (`deploy.yml`, `preview-deploy.yml`) run
-   `uv run alembic upgrade head` before `gcloud run deploy`. Never
-   reverse the order. For destructive changes (dropping columns,
-   renaming tables), use a two-step deploy.
-
-7. **Use the pooled Neon URL from Cloud Run, direct URL from Alembic.**
-   Neon gives you two connection strings. Cloud Run runtime traffic
-   MUST use the pooled URL to avoid connection exhaustion (every Cloud
-   Run instance opens its own pool). Alembic migrations MUST use the
-   direct URL because PgBouncer in transaction-pooling mode doesn't
-   support session-level operations Alembic needs. Both URLs are
-   exposed by `neondatabase/create-branch-action` as
-   `db_url_pooled` and `db_url`.
-
-8. **SQLModel + mypy: use column strings for `order_by`.** SQLModel
-   annotates columns as their Python types (e.g., `created_at: datetime`),
-   so mypy doesn't know they're SQLAlchemy columns. Calling `.desc()`
-   on them fails type checking. Fix: `select(Todo).order_by(desc("created_at"))`
-   using a string column name. See pattern #16 in `docs/PATTERN-LIBRARY.md`.
-
-9. **HTMX routes must return FRAGMENTS, not full pages.** If a handler
-   returns a full HTML document to an HTMX request, HTMX inserts the
-   entire document into the target element. Route handlers for HTMX
-   endpoints should render partial templates from `templates/_fragments/`
-   and never include the base layout. See patterns #18 and #19 in
-   `docs/PATTERN-LIBRARY.md`.
-
-10. **Artifact Registry, not Container Registry.** Older GCP docs
-    reference `gcr.io/PROJECT/image` — Container Registry is deprecated.
-    New Cloud Run deploys must use Artifact Registry:
-    `REGION-docker.pkg.dev/PROJECT/REPO/image`. An image pushed to
-    `gcr.io` will work for a while, then silently stop pulling once the
-    deprecation window closes.
-
-11. **Reusable workflows need `workflow_call` trigger.** If a GitHub
-    Actions workflow is called by another via
-    `uses: ./.github/workflows/ci.yml`, the called workflow MUST have
-    `workflow_call:` in its `on:` block. Without it, GitHub silently
-    shows "0 jobs" with a vague error.
+6. **Magic link auth needs two callback handlers.** Before implementing auth,
+   read Pattern #24 in `docs/PATTERN-LIBRARY.md`. Magic links put tokens in
+   the URL hash fragment (`#access_token=...`) which never reaches the server.
+   You need BOTH `app/api/auth/callback/route.ts` (server-side, for code/PKCE)
+   AND `app/(auth)/auth/callback/page.tsx` (client-side, for hash fragments).
+   Without the client-side page, auth silently fails — the user clicks the
+   magic link, lands on the callback URL, and gets sent back to login.
 
 ## Decision-Making Framework
 
@@ -343,7 +283,6 @@ return success signals while doing the wrong thing.
 - [ ] Does the feature work end-to-end?
 - [ ] Is the code appropriately documented?
 - [ ] Do all tests pass?
-- [ ] **Are literal framework-state claims empirically verified?** If the diff includes a literal CLI command, file path, workflow filename, or framework-hook semantics claim, run the verification action before submitting. See `.claude/agents/pr-reviewer.md` → "Empirical Verification of Literal Framework-State Claims" for the four trigger categories and verification actions. The reviewer agent applies the same rule and will NO-GO any unverified claim that fails empirical check — catching it pre-submit saves a review round.
 
 ### Verification Steps:
 Refer to CLAUDE.md for project-specific verification commands.
@@ -413,68 +352,32 @@ See `docs/MEMORY-ARCHITECTURE.md` for full naming conventions and the
 
 ## Framework-Specific Testing Patterns
 
-### FastAPI with pytest and httpx
+### React / Next.js with Vitest
 
-For HTTP-level tests, use `fastapi.testclient.TestClient` (sync) or
-`httpx.AsyncClient` (async). Override the `get_session` dependency so
-tests use an in-memory SQLite database instead of the real Neon DB:
+When working on a React or Next.js project that uses Vitest and React
+Testing Library, every test file that renders components MUST call
+`cleanup()` after each test. This is typically handled via a setup file:
 
-```python
-# tests/conftest.py
-from collections.abc import Generator
+```typescript
+// vitest.setup.ts
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
-from sqlmodel.pool import StaticPool
-
-from app.db import get_session
-from app.main import app
-
-
-@pytest.fixture(name="session")
-def session_fixture() -> Generator[Session, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-@pytest.fixture(name="client")
-def client_fixture(session: Session) -> Generator[TestClient, None, None]:
-    def get_session_override() -> Generator[Session, None, None]:
-        yield session
-
-    app.dependency_overrides[get_session] = get_session_override
-    with TestClient(app) as client:
-        yield client
-    app.dependency_overrides.clear()
+afterEach(() => {
+  cleanup();
+});
 ```
 
-This gives each test a fresh in-memory database, avoids hitting Neon in
-CI, and keeps tests fast (~10ms per test).
+If a `vitest.setup.ts` file exists and includes this cleanup, you do NOT
+need to add `cleanup()` in individual test files. If no setup file exists,
+add cleanup directly:
 
-### Testing HTMX Fragment Routes
+```typescript
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, it, expect } from 'vitest';
 
-HTMX routes return HTML fragments (not JSON). Test them by asserting on
-substrings of the response body:
-
-```python
-def test_create_todo_returns_updated_list_fragment(client, session):
-    response = client.post("/todos", data={"title": "buy milk"})
-    assert response.status_code == 200
-    assert "buy milk" in response.text
-    # Fragment response should NOT include the full page chrome
-    assert "<html" not in response.text
-    assert 'id="todo-list"' in response.text
+afterEach(() => { cleanup(); });
 ```
-
-The "no `<html`" assertion catches the common mistake of accidentally
-returning a full page template from an HTMX endpoint.
 
 ## Non-Interactive Scaffolding
 
@@ -483,12 +386,28 @@ use non-interactive flags. Interactive prompts will hang the agent.
 
 | Tool | Non-Interactive Flag |
 |------|---------------------|
-| `uv init` | Non-interactive by default |
-| `uv add` | Non-interactive by default |
-| `uv sync` | Non-interactive by default |
-| `alembic revision --autogenerate` | Use `-m "message"` to skip the editor |
-| `gh` commands | Use `--yes` for destructive commands |
+| `create-next-app` | `--yes` or explicit flags (`--ts --eslint --app`) |
+| `npm init` | `-y` |
+| `create-vite` | Pass template via `--template react-ts` |
+| `npx create-react-app` | Non-interactive by default |
 | `go mod init` | Non-interactive by default |
+| `uv init` | Non-interactive by default |
+
+## ESLint Ignore Patterns
+
+When working in a repository that may have artifacts from a previous stack
+(e.g., Python `.venv/` directory), ensure the ESLint config ignores them:
+
+```javascript
+// eslint.config.mjs
+export default [
+  { ignores: ['.venv/', 'node_modules/', '.next/', 'dist/'] },
+  // ... rest of config
+];
+```
+
+Always include `.venv/` in ESLint ignores for any Node.js project created
+from this template, since the template starts with a Python scaffolding.
 
 ## Output Format
 

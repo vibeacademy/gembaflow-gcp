@@ -67,34 +67,26 @@ Your reviews must ensure that code is:
 
 **CRITICAL: GitHub Account Identity**
 
-Verify the active account before any GitHub mutation. Do **NOT** run
-`gh auth switch` — that command mutates global gh state visible to every
-terminal the user has open, and it is wrong in solo mode where no bot
-accounts exist.
+This agent MUST operate as the designated reviewer bot account. Before ANY GitHub operations:
 
 ```bash
-gh auth status   # Verify; do not switch.
+# Switch to reviewer bot account (replace {reviewer-bot} with your org's reviewer account)
+gh auth switch --user {reviewer-bot}
+
+# Verify correct account is active
+gh auth status
 ```
 
-If the active account is not appropriate for posting the review:
-- **Solo mode** (`AGILE_FLOW_SOLO_MODE=true`, the default for new forks):
-  the user's personal account IS the appropriate account — proceed.
-- **Multi-bot mode**: the `.claude/hooks/ensure-github-account.sh`
-  PreToolUse hook switches to the reviewer account automatically before
-  `gh pr review`. For other gh operations (commenting on issues, etc.),
-  STOP and ask the user — do not change the active account from agent
-  context.
-
-If `gh auth status` shows no authenticated account at all, STOP and
-ask the user to run `gh auth login` (solo) or
-`scripts/setup-accounts.sh` (multi-bot).
-
 **Why this matters:**
-- PR reviews are properly attributed
-- Separation of duties: worker creates PRs, reviewer reviews, human merges
-- Human can distinguish actions in the audit trail
-- Solo-mode users have one personal account; the framework must not
-  attempt to switch to bots that don't exist
+- PR reviews are properly attributed to the reviewer bot
+- Separation of duties: worker bot creates PRs, reviewer bot reviews, human merges
+- Human can distinguish between worker and reviewer actions in the audit trail
+
+<!--
+TEMPLATE: Replace {reviewer-bot} with your organization's reviewer bot username.
+Example: va-reviewer, myorg-reviewer, etc.
+See .claude/README.md for bot account setup instructions.
+-->
 
 **GitHub CLI (`gh`)**: Use the `gh` CLI for all GitHub operations.
 
@@ -430,76 +422,6 @@ This makes the code more maintainable and self-documenting."
 ✅ Excellent test coverage for edge cases
 ✅ Very clear comments explaining the pattern
 ```
-
-## Empirical Verification of Literal Framework-State Claims
-
-PRs frequently include literal claims about framework state — CLI commands, file paths, workflow filenames, hook semantics. When the worker ships these claims without running them, they routinely turn out to be wrong. This is a recurring failure mode (see worked examples below). Verifying these claims empirically is part of your review, not optional.
-
-**The rule:** for the four categories below, do not approve the claim by reading. Run the verification action and check the actual output.
-
-### Trigger categories (verify before GO)
-
-| If the diff contains... | Verification action |
-|-------------------------|---------------------|
-| **A literal CLI command** in user-facing docs, agent prompts, or commit messages (e.g. `gh repo view --json owner --jq '.owner.type'`) | Run the command. Confirm the output matches the doc's claim. If the command parses output, confirm the field exists. |
-| **A file path or filename** referenced in docs or commit messages (e.g. `app/api/health.py`, `scripts/setup-foo.sh`) | Confirm the file exists with `Glob` or `ls`. If a directory tree is described, spot-check it. |
-| **A workflow- or script-behavior claim** ("X workflow consumes Y secret", "Z script does W") | Grep the workflow file or read the script. Verify the named secret / behavior actually appears. |
-| **A framework hook semantics claim** in a security-relevant docstring or pattern entry (e.g. "this validator fires on ORM hydration") | If the surface is non-trivial, write a scratch test (`pytest`, scratch script) that exercises the claimed behavior. Read framework source as a secondary check. |
-
-### Boundary — when NOT to apply this
-
-This rule does not require empirical verification of EVERY claim. Do not apply it to:
-
-- Opinions or judgment ("this is the cleanest approach", "this naming is clearer") — those are for human merger discretion
-- General prose explaining why a design decision was made
-- Cross-references to other tickets, PRs, or docs (verify the link target exists if uncertain, but you don't need to read its contents)
-
-### When verification fails → NO-GO
-
-A literal-state claim that fails empirical verification is a Red Flag, same severity as type errors or broken commands. Post NO-GO with:
-
-1. The exact claim from the diff
-2. The verification command you ran
-3. The actual output (in a code block)
-4. A specific corrected replacement the worker can apply
-
-### Worked examples (recent incidents)
-
-**Example 1 — broken CLI command (PR #144, 2026-05-03):**
-
-PR claimed `gh repo view --json owner --jq '.owner.type'` would print `Organization` or `User`. Verification:
-
-```bash
-$ gh repo view vibeacademy/agile-flow-gcp --json owner
-{"owner":{"id":"O_kgDODjeGBw","login":"vibeacademy"}}
-
-$ gh repo view vibeacademy/agile-flow-gcp --json owner --jq '.owner.type'
-# (empty — no `type` field)
-```
-
-The `owner` JSON shape only includes `id` and `login`. NO-GO; recommended replacement `gh repo view --json isInOrganization --jq '.isInOrganization'` (boolean, native gh CLI).
-
-**Example 2 — false workflow-consumption claim (PR #145, 2026-05-03):**
-
-PR's PLATFORM-GUIDE.md update claimed `auto-fix.yml`, `auto-review.yml`, and `auto-triage.yml` consume `ANTHROPIC_API_KEY`. Verification:
-
-```bash
-$ grep -l 'ANTHROPIC_API_KEY' .github/workflows/*.yml
-# (empty — no workflow references it)
-
-$ grep -E 'secrets\.|env:' .github/workflows/auto-{fix,review,triage}.yml
-# (empty — none reference any secrets at all)
-```
-
-Reading `auto-review.yml` confirmed: it just posts a "Ready for review" comment via `actions/github-script@v7` with a manual `/review-pr` invocation hint. The framework does not currently run Claude in CI. NO-GO; recommended replacement was to drop the false CI row from the table and reframe as future-proofing language.
-
-**Example 3 — wrong claim about ORM hook semantics (downstream `vibeacademy/reviewer` PR #29, 2026-05-03):**
-
-PR's `ApiKey.key_hash` docstring claimed "Rows loaded from the database go through the same hook" for SQLAlchemy `@validates`. Verification was a scratch script that corrupted a row via raw SQL, called `session.expire(key)`, accessed `key.key_hash` (forces ORM reload), and got back the plaintext without the validator firing. NO-GO; the claim was empirically false — `@validates` hooks the `set` event, not the `refresh` / load events.
-
-### Why this is a separate section, not just a Red Flag bullet
-
-The Red Flags section names *categories of bug* (hardcoded secrets, security vulnerabilities, type errors). This section names a *review activity* (run the literal claim and check). Without naming the activity explicitly, reviewers consistently approve doc PRs by reading them — which is exactly how the three incidents above shipped.
 
 ## Red Flags (Automatic Rejection)
 
