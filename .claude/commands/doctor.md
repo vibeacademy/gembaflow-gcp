@@ -36,49 +36,10 @@ configuration. Surfaces every issue that could block a workshop participant.
       ```
 
       Check for presence (not values) of:
-      - `GCP_PROJECT_ID` — WARN if missing (required for any deploy)
-      - `GCP_WORKLOAD_IDENTITY_PROVIDER` — WARN if missing AND `GCP_SA_KEY` is also missing
-      - `GCP_SERVICE_ACCOUNT` — WARN if missing AND `GCP_SA_KEY` is also missing
-      - `GCP_SA_KEY` — OK if missing when WIF is configured (workshop fallback only)
-      - `NEON_API_KEY` — WARN if missing (required for PR preview branching)
-      - `NEON_PROJECT_ID` — WARN if missing (required for PR preview branching)
-      - `PRODUCTION_DATABASE_URL` — WARN if missing (required to run
-        Alembic migrations against the prod Neon branch during deploy)
-
-   d. **Local gcloud auth** — run:
-
-      ```text
-      gcloud auth list --format=json 2>/dev/null
-      ```
-
-      - PASS if at least one active account is listed
-      - WARN if no active account (user needs `gcloud auth login`)
-      - SKIP if `gcloud` is not installed (note: required for local
-        container builds and manual deploys, but CI works without it)
-
-   e. **Local gcloud project** — run:
-
-      ```text
-      gcloud config get-value project 2>/dev/null
-      ```
-
-      - PASS if a project is set
-      - WARN if unset (user needs `gcloud config set project ${GCP_PROJECT_ID}`)
-      - SKIP if `gcloud` is not installed
-
-   f. **Local uv and Python** — check for `uv` in `$PATH` and
-      `pyproject.toml` at repo root:
-
-      ```text
-      which uv && uv --version
-      test -f pyproject.toml && echo "pyproject.toml present"
-      ```
-
-      - PASS if `uv` is installed AND `pyproject.toml` exists
-      - WARN if `uv` is missing (needed for local dev; CI installs it
-        automatically)
-      - WARN if `pyproject.toml` is missing (this is a Python project —
-        something is wrong)
+      - `RENDER_API_KEY` — WARN if missing
+      - `RENDER_SERVICE_ID` — WARN if missing
+      - `SUPABASE_ACCESS_TOKEN` — WARN if missing
+      - `SUPABASE_PROJECT_REF` — WARN if missing
 
    c. **GitHub Project board** — run:
 
@@ -97,16 +58,12 @@ configuration. Surfaces every issue that could block a workshop participant.
    ### Local Checks (from scripts/doctor.sh)
    PASS: {n}  WARN: {n}  FAIL: {n}  SKIP: {n}
 
-   ### Remote + Environment Checks
+   ### Remote Checks
    | Check | Status | Details |
    |-------|--------|---------|
    | Branch protection | PASS/WARN | ... |
-   | Repo secrets (GCP) | PASS/WARN | ... |
-   | Repo secrets (Neon) | PASS/WARN | ... |
+   | Repo secrets | PASS/WARN | ... |
    | Project board | PASS/WARN | ... |
-   | Local gcloud auth | PASS/WARN/SKIP | ... |
-   | Local gcloud project | PASS/WARN/SKIP | ... |
-   | Local uv + pyproject | PASS/WARN | ... |
 
    ### Overall
    Ready for workshop: **YES** / **NO**
