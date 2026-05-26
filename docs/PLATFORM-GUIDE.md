@@ -66,14 +66,14 @@ after enabling, wait a minute and retry.
 ### Step 3: Create an Artifact Registry Repository
 
 ```bash
-gcloud artifacts repositories create agile-flow \
+gcloud artifacts repositories create gembaflow \
   --repository-format=docker \
   --location=us-central1 \
   --project=YOUR_PROJECT_ID
 ```
 
 Container images will live at:
-`us-central1-docker.pkg.dev/YOUR_PROJECT_ID/agile-flow/agile-flow-app:TAG`
+`us-central1-docker.pkg.dev/YOUR_PROJECT_ID/gembaflow/gembaflow-app:TAG`
 
 **Do not use `gcr.io` paths.** Container Registry is deprecated and new
 projects cannot write to it.
@@ -135,7 +135,7 @@ either system — just secret values.
 
 **End-to-end for one participant (`bob`):**
 
-1. Facilitator's roster has bob's row with `github_full_repo=acme/widget-shop` (or empty, defaulting to `bob-gh/agile-flow-gcp` for personal forks).
+1. Facilitator's roster has bob's row with `github_full_repo=acme/widget-shop` (or empty, defaulting to `bob-gh/gembaflow-gcp` for personal forks).
 2. Facilitator runs `provision-workshop-roster.sh` → `af-bob-2026-05` exists with the deployer SA, and Step 5.5 binds the WIF trust to whatever GitHub repo bob's row specified.
 3. Facilitator emails bob the four secret values. (Template in `agile-flow-meta/docs/workshops/gcp-facilitator-runbook.md` §7.)
 4. Bob forks `vibeacademy/agile-flow-gcp` (to his account or his org), pastes the four secrets, pushes a trivial change to `main`. The deploy workflow uses WIF to assume the deployer SA and ships the container to bob's project.
@@ -172,7 +172,7 @@ for `GITHUB_OWNER` so older callers don't need to change.
 GCP_PROJECT_ID=af-alice-2026-05 \
 BILLING_ACCOUNT_ID=XXX-XXXX-XXXX \
 GITHUB_OWNER=alice-gh \
-GITHUB_REPO=agile-flow-gcp \
+GITHUB_REPO=gembaflow-gcp \
   ./scripts/provision-gcp-project.sh --create-project
 
 # Org fork with renamed repo
@@ -370,8 +370,8 @@ In your GitHub repo settings (Settings → Secrets and variables → Actions):
 | Name | Default | Purpose |
 |------|---------|---------|
 | `GCP_REGION` | `us-central1` | Cloud Run + Artifact Registry region |
-| `ARTIFACT_REPO` | `agile-flow` | Artifact Registry repo name |
-| `CLOUD_RUN_SERVICE` | `agile-flow-app` | Cloud Run service name |
+| `ARTIFACT_REPO` | `gembaflow` | Artifact Registry repo name |
+| `CLOUD_RUN_SERVICE` | `gembaflow-app` | Cloud Run service name |
 | `APP_URL` | (your production URL) | Passed to the container at runtime for self-referential URL construction |
 | `NEON_DB_USER` | `neondb_owner` | Neon database role |
 
@@ -611,7 +611,7 @@ Columns:
   identifying the participant's fork. Use the override when attendees
   fork into their organization's GitHub (e.g., `acme/widget-shop`) and
   rename the repo to fit their product. When empty or absent, defaults
-  to `<github_user>/agile-flow-gcp` (the personal-fork pattern).
+  to `<github_user>/gembaflow-gcp` (the personal-fork pattern).
   Validation: `^[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$`.
 
 Project IDs follow the pattern `af-{handle}-{cohort}`. This shape is
@@ -809,7 +809,7 @@ logs `[skip]` and continues. The placeholder revision pins
 the first real deploy doesn't change either property.
 
 Override the service name with `CLOUD_RUN_SERVICE=<name>`; defaults to
-`agile-flow-app`.
+`gembaflow-app`.
 
 ### What the lifecycle scripts do NOT do
 
@@ -995,7 +995,7 @@ issue #86 for the API research.
 ### Viewing Logs
 
 ```bash
-gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="agile-flow-app"' \
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="gembaflow-app"' \
   --project=YOUR_PROJECT_ID \
   --limit=50 \
   --format='value(timestamp,textPayload)'
@@ -1031,14 +1031,14 @@ Cloud Run keeps every revision. To roll back:
 ```bash
 # List recent revisions
 gcloud run revisions list \
-  --service=agile-flow-app \
+  --service=gembaflow-app \
   --region=us-central1 \
   --limit=10
 
 # Route 100% of traffic to a specific revision
-gcloud run services update-traffic agile-flow-app \
+gcloud run services update-traffic gembaflow-app \
   --region=us-central1 \
-  --to-revisions=agile-flow-app-00042-xyz=100
+  --to-revisions=gembaflow-app-00042-xyz=100
 ```
 
 ### Updating Runtime Secrets

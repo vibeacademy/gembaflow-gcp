@@ -138,17 +138,17 @@ cat > "$T2/service.json" <<'JSON'
     "template": {
       "spec": {
         "containers": [
-          {"image": "us-central1-docker.pkg.dev/af-test/agile-flow/app:abc1234"}
+          {"image": "us-central1-docker.pkg.dev/af-test/gembaflow/app:abc1234"}
         ]
       }
     }
   },
   "status": {
-    "url": "https://agile-flow-app-xxx-uc.a.run.app",
-    "latestReadyRevisionName": "agile-flow-app-00005-abc",
-    "latestCreatedRevisionName": "agile-flow-app-00005-abc",
+    "url": "https://gembaflow-app-xxx-uc.a.run.app",
+    "latestReadyRevisionName": "gembaflow-app-00005-abc",
+    "latestCreatedRevisionName": "gembaflow-app-00005-abc",
     "traffic": [
-      {"percent": 100, "revisionName": "agile-flow-app-00005-abc"}
+      {"percent": 100, "revisionName": "gembaflow-app-00005-abc"}
     ]
   }
 }
@@ -173,7 +173,7 @@ ec=$?
 set -e
 
 assert_eq "0" "$ec" "exit 0 on happy path"
-assert_contains "=== Cloud Run service: agile-flow-app ===" "$T2/stdout.log" "section 1 header"
+assert_contains "=== Cloud Run service: gembaflow-app ===" "$T2/stdout.log" "section 1 header"
 assert_contains "=== Traffic split ===" "$T2/stdout.log" "section 2 header"
 assert_contains "=== Currently-serving image ===" "$T2/stdout.log" "section 3 header"
 assert_contains "=== Latest revision conditions ===" "$T2/stdout.log" "section 4 header"
@@ -181,15 +181,15 @@ assert_contains "=== Last 50 log lines ===" "$T2/stdout.log" "section 5 header"
 assert_contains "=== End of diagnostic ===" "$T2/stdout.log" "footer marker"
 
 # Section 1 fields
-assert_contains "URL:                  https://agile-flow-app-xxx-uc.a.run.app" "$T2/stdout.log" "URL line"
-assert_contains "Latest READY:         agile-flow-app-00005-abc" "$T2/stdout.log" "latest-ready line"
+assert_contains "URL:                  https://gembaflow-app-xxx-uc.a.run.app" "$T2/stdout.log" "URL line"
+assert_contains "Latest READY:         gembaflow-app-00005-abc" "$T2/stdout.log" "latest-ready line"
 
 # Section 2: 100% traffic, no STALE marker (latest-ready matches)
-assert_contains "100% -> agile-flow-app-00005-abc" "$T2/stdout.log" "traffic 100% to current"
+assert_contains "100% -> gembaflow-app-00005-abc" "$T2/stdout.log" "traffic 100% to current"
 assert_not_contains "STALE" "$T2/stdout.log" "no STALE marker when traffic matches latest-ready"
 
 # Section 3: real image, no PLACEHOLDER marker
-assert_contains "us-central1-docker.pkg.dev/af-test/agile-flow/app:abc1234" "$T2/stdout.log" "real image rendered"
+assert_contains "us-central1-docker.pkg.dev/af-test/gembaflow/app:abc1234" "$T2/stdout.log" "real image rendered"
 assert_not_contains "PLACEHOLDER" "$T2/stdout.log" "no PLACEHOLDER marker for real image"
 
 # Section 4: revision conditions
@@ -224,11 +224,11 @@ cat > "$T3/service.json" <<'JSON'
     }
   },
   "status": {
-    "url": "https://agile-flow-app-xxx-uc.a.run.app",
-    "latestReadyRevisionName": "agile-flow-app-00005-abc",
-    "latestCreatedRevisionName": "agile-flow-app-00005-abc",
+    "url": "https://gembaflow-app-xxx-uc.a.run.app",
+    "latestReadyRevisionName": "gembaflow-app-00005-abc",
+    "latestCreatedRevisionName": "gembaflow-app-00005-abc",
     "traffic": [
-      {"percent": 100, "revisionName": "agile-flow-app-00001-q7w"}
+      {"percent": 100, "revisionName": "gembaflow-app-00001-q7w"}
     ]
   }
 }
@@ -246,7 +246,7 @@ set -e
 
 assert_eq "0" "$ec" "exit 0"
 assert_contains "STALE" "$T3/stdout.log" "STALE marker on traffic going to non-latest-ready revision"
-assert_contains "latest-ready is agile-flow-app-00005-abc" "$T3/stdout.log" "STALE marker names latest-ready"
+assert_contains "latest-ready is gembaflow-app-00005-abc" "$T3/stdout.log" "STALE marker names latest-ready"
 assert_contains "PLACEHOLDER" "$T3/stdout.log" "PLACEHOLDER marker on cloudrun/container/hello image"
 
 # ── Test 4: latest-created != latest-ready → WARN line fires ────────────

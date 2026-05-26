@@ -15,7 +15,7 @@
 #
 # Optional (forwarded to provision-workshop-roster.sh):
 #   GCP_REGION           default: us-central1
-#   ARTIFACT_REPO        default: agile-flow
+#   ARTIFACT_REPO        default: gembaflow
 #   PROVISION_SCRIPT     default: scripts/provision-gcp-project.sh
 #
 # Pre-flight checks (in order):
