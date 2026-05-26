@@ -14,7 +14,6 @@ required secrets, and default states. This fork targets **GCP Cloud Run
 | Preview Deploy | `preview-deploy.yml` | PR opened/updated | Inert | Same as Deploy, plus `NEON_API_KEY`, `NEON_PROJECT_ID` |
 | Preview Cleanup | `preview-cleanup.yml` | PR closed | Inert | Same as Preview Deploy |
 | Auto Review | `auto-review.yml` | PR opened/ready | Active | None |
-| Auto Fix | `auto-fix.yml` | PR opened/updated | Active | None |
 | Rollback | `rollback-production.yml` | Manual dispatch | Inert | Same as Deploy |
 
 Neon secrets are optional — if not configured, preview deploys will use
@@ -59,17 +58,6 @@ Triggers when a `v*` tag is pushed. Extracts the matching section from
 
 Posts a review reminder comment on new PRs, prompting the team to run
 `/review-pr` for an agent review.
-
-### Auto Fix (`auto-fix.yml`)
-
-Automatically fixes lint issues on PR branches. Detects the project
-type and runs the appropriate fixer:
-
-- **Python** (when `pyproject.toml` exists): runs `ruff check --fix`
-  and `ruff format`
-- **Node.js** (when `package.json` exists): runs `npx eslint . --fix`
-
-Fixed files are committed back to the PR branch automatically.
 
 ## Enable When Ready
 
@@ -216,7 +204,6 @@ Autogeneration is a starting point, not a final answer.
 | `python` tests fail | Test failures or coverage below threshold | Fix tests or lower `COVERAGE_THRESHOLD` |
 | `lint-agent-policies` fails | Agent file missing safety phrases | Check `scripts/verify-agent-restrictions.sh` output |
 | `build` fails | Shell script errors | Run `shellcheck <script>` locally |
-| `auto-fix` skips your stack | No fixer detected | Ensure `package.json` (Node.js) or `pyproject.toml` (Python) exists in the repo root |
 
 ### Secret-Gated Workflows Show "Skipped"
 
