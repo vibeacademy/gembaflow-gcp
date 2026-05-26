@@ -83,8 +83,8 @@ Deploys to Cloud Run production on merge to `main`.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `GCP_REGION` | `us-central1` | Cloud Run + Artifact Registry region |
-| `ARTIFACT_REPO` | `agile-flow` | Artifact Registry repo name |
-| `CLOUD_RUN_SERVICE` | `agile-flow-app` | Cloud Run service name |
+| `ARTIFACT_REPO` | `gembaflow` | Artifact Registry repo name |
+| `CLOUD_RUN_SERVICE` | `gembaflow-app` | Cloud Run service name |
 | `APP_URL` | (your URL) | Runtime env var for self-referential URL construction |
 | `PRODUCTION_DATABASE_URL` | Secret | Neon main branch pooled URL; used by `alembic upgrade head` before deploy |
 

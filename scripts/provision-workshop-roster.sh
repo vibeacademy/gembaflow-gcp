@@ -35,7 +35,7 @@
 #
 # Optional environment variables:
 #   GCP_REGION           (default: us-central1) — passed through to inner script
-#   ARTIFACT_REPO        (default: agile-flow)  — passed through to inner script
+#   ARTIFACT_REPO        (default: gembaflow)  — passed through to inner script
 #   PROVISION_SCRIPT     (default: scripts/provision-gcp-project.sh) — for tests
 #   NEON_API_KEY         optional; forwarded to inner script for branch creation
 #   NEON_PROJECT_ID      optional; forwarded to inner script for branch creation
@@ -531,7 +531,7 @@ while IFS=',' read -r handle github_user email cohort neon_branch github_full_re
   GCP_PROJECT_ID="$project_id" \
   BILLING_ACCOUNT_ID="$BILLING_ACCOUNT_ID" \
   GCP_REGION="${GCP_REGION:-us-central1}" \
-  ARTIFACT_REPO="${ARTIFACT_REPO:-agile-flow}" \
+  ARTIFACT_REPO="${ARTIFACT_REPO:-gembaflow}" \
   GITHUB_OWNER="$github_owner" \
   GITHUB_REPO="$github_repo" \
   GITHUB_USERNAME="$github_user" \

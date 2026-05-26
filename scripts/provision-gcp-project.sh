@@ -13,12 +13,12 @@
 # Environment variables:
 #   GCP_PROJECT_ID       (required) Project ID to provision into
 #   GCP_REGION           (default: us-central1)
-#   ARTIFACT_REPO        (default: agile-flow)
+#   ARTIFACT_REPO        (default: gembaflow)
 #   BILLING_ACCOUNT_ID   (required if --create-project)
 #   GITHUB_OWNER         (optional) GitHub owner of the participant's
 #                        fork. Personal username (alice-gh) or org (acme).
 #                        Required to enable Step 5.5 (WIF setup).
-#   GITHUB_REPO          (default: agile-flow-gcp) Repo name within
+#   GITHUB_REPO          (default: gembaflow-gcp) Repo name within
 #                        GITHUB_OWNER. Set when participants fork into
 #                        an org and rename the repo for their product.
 #   GITHUB_USERNAME      Legacy alias for GITHUB_OWNER. When GITHUB_OWNER
@@ -67,7 +67,7 @@
 set -euo pipefail
 
 GCP_REGION="${GCP_REGION:-us-central1}"
-ARTIFACT_REPO="${ARTIFACT_REPO:-agile-flow}"
+ARTIFACT_REPO="${ARTIFACT_REPO:-gembaflow}"
 
 # ── Retry helper for GCP eventual consistency ────────────────────────────
 #
@@ -389,7 +389,7 @@ done
 #                    a personal username (alice-gh) or an organization
 #                    (acme). Required to enable Step 5.5.
 #   GITHUB_REPO      The repo name within the owner. Defaults to
-#                    'agile-flow-gcp' when unset.
+#                    'gembaflow-gcp' when unset.
 #   GITHUB_USERNAME  Legacy alias for GITHUB_OWNER. Used when GITHUB_OWNER
 #                    is unset, so external callers that set the older
 #                    name continue to work.
@@ -412,7 +412,7 @@ done
 # Resolve GITHUB_OWNER, falling back to GITHUB_USERNAME for backwards
 # compatibility with external callers from before #40.
 WIF_OWNER="${GITHUB_OWNER:-${GITHUB_USERNAME:-}}"
-WIF_REPO_NAME="${GITHUB_REPO:-agile-flow-gcp}"
+WIF_REPO_NAME="${GITHUB_REPO:-gembaflow-gcp}"
 
 # Org-trust mode (#107). When WIF_ORG_TRUST_PATTERN is set (typically
 # from the workshop-org provisioning flow with WIF_ORG_TRUST_PATTERN=
@@ -842,7 +842,7 @@ fi
 #                              so first real deploy doesn't change ACL
 #   --port=8080 = matches the FastAPI Dockerfile and preview-deploy config
 
-SERVICE_NAME="${CLOUD_RUN_SERVICE:-agile-flow-app}"
+SERVICE_NAME="${CLOUD_RUN_SERVICE:-gembaflow-app}"
 
 if gcloud run services describe "$SERVICE_NAME" \
     --region="$GCP_REGION" \
@@ -1079,7 +1079,7 @@ fi
 echo ""
 echo "   GCP_REGION             = $GCP_REGION"
 echo "   ARTIFACT_REPO          = $ARTIFACT_REPO"
-echo "   CLOUD_RUN_SERVICE      = agile-flow-app"
+echo "   CLOUD_RUN_SERVICE      = gembaflow-app"
 echo "   NEXT_PUBLIC_APP_URL    = (your production URL)"
 echo ""
 echo "5. Push to main to trigger your first deployment."

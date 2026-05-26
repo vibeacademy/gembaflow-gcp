@@ -1100,14 +1100,14 @@ forwards `flags:` verbatim to `gcloud run deploy`) fails with
 - name: Deploy to Cloud Run
   uses: google-github-actions/deploy-cloudrun@v2
   with:
-    service: agile-flow-app
+    service: gembaflow-app
     image: ${{ env.IMAGE }}
     region: us-central1
     # Note: no --traffic flag here. `gcloud run deploy` rejects it.
 
 - name: Route traffic to latest revision
   run: |
-    gcloud run services update-traffic agile-flow-app \
+    gcloud run services update-traffic gembaflow-app \
       --region=us-central1 \
       --to-latest
 ```
@@ -1173,7 +1173,7 @@ inject the per-PR Neon branch URL).
 - name: Deploy to Cloud Run
   uses: google-github-actions/deploy-cloudrun@v2
   with:
-    service: agile-flow-app
+    service: gembaflow-app
     image: ${{ env.IMAGE }}
     region: us-central1
     env_vars: |
@@ -1189,7 +1189,7 @@ Production traffic shift to the new revision happens in a separate
 - name: Deploy preview revision
   uses: google-github-actions/deploy-cloudrun@v2
   with:
-    service: agile-flow-app
+    service: gembaflow-app
     image: ${{ env.IMAGE }}
     region: us-central1
     flags: --no-traffic --tag=pr-${{ github.event.pull_request.number }}
@@ -1215,7 +1215,7 @@ the previous run wrote. It breaks down the moment prod and preview
 alternate against the same service — see #66 (the workaround) and
 #68 (the structural fix). Larger remediation options like per-PR
 secrets (`database-url-pr-N`) or separate services per environment
-(`agile-flow-app-prod`, `agile-flow-app-pr-N`) are tracked for
+(`gembaflow-app-prod`, `gembaflow-app-pr-N`) are tracked for
 post-workshop work.
 
 Surfaced in the 2026-04-29 dry-run when production and preview

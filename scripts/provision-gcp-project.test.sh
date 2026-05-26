@@ -794,11 +794,11 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-if grep -q "alice-gh/agile-flow-gcp" "$T13/stdout.log"; then
-  echo -e "  ${GREEN}✓${NC} binding log names alice-gh/agile-flow-gcp (default WIF_REPO)"
+if grep -q "alice-gh/gembaflow-gcp" "$T13/stdout.log"; then
+  echo -e "  ${GREEN}✓${NC} binding log names alice-gh/gembaflow-gcp (default WIF_REPO)"
   PASS=$((PASS + 1))
 else
-  echo -e "  ${RED}✗${NC} expected binding log to mention alice-gh/agile-flow-gcp"
+  echo -e "  ${RED}✗${NC} expected binding log to mention alice-gh/gembaflow-gcp"
   cat "$T13/stdout.log"
   FAIL=$((FAIL + 1))
 fi
@@ -806,18 +806,18 @@ fi
 # Both WIF roles must be bound. workloadIdentityUser alone leaves the deploy
 # step unable to mint access tokens for docker push. We learned that the
 # hard way during smoke 2026-04-28.
-if grep -q "\[bind\] roles/iam.workloadIdentityUser <- alice-gh/agile-flow-gcp" "$T13/stdout.log"; then
+if grep -q "\[bind\] roles/iam.workloadIdentityUser <- alice-gh/gembaflow-gcp" "$T13/stdout.log"; then
   echo -e "  ${GREEN}✓${NC} workloadIdentityUser binding logged"
   PASS=$((PASS + 1))
 else
-  echo -e "  ${RED}✗${NC} expected '[bind] roles/iam.workloadIdentityUser <- alice-gh/agile-flow-gcp'"
+  echo -e "  ${RED}✗${NC} expected '[bind] roles/iam.workloadIdentityUser <- alice-gh/gembaflow-gcp'"
   FAIL=$((FAIL + 1))
 fi
-if grep -q "\[bind\] roles/iam.serviceAccountTokenCreator <- alice-gh/agile-flow-gcp" "$T13/stdout.log"; then
+if grep -q "\[bind\] roles/iam.serviceAccountTokenCreator <- alice-gh/gembaflow-gcp" "$T13/stdout.log"; then
   echo -e "  ${GREEN}✓${NC} serviceAccountTokenCreator binding logged"
   PASS=$((PASS + 1))
 else
-  echo -e "  ${RED}✗${NC} expected '[bind] roles/iam.serviceAccountTokenCreator <- alice-gh/agile-flow-gcp'"
+  echo -e "  ${RED}✗${NC} expected '[bind] roles/iam.serviceAccountTokenCreator <- alice-gh/gembaflow-gcp'"
   FAIL=$((FAIL + 1))
 fi
 
@@ -865,7 +865,7 @@ fi
 
 # ── Test 14b: GITHUB_OWNER + GITHUB_REPO (org-fork path) ────────────────
 # Verifies the new env-var pair from #40. Owner is acme (an org); repo
-# name diverges from `agile-flow-gcp` because the participant renamed it.
+# name diverges from `gembaflow-gcp` because the participant renamed it.
 
 echo ""
 echo "Test 14b: Step 5.5 honors GITHUB_OWNER + GITHUB_REPO"
@@ -874,7 +874,7 @@ echo "Test 14b: Step 5.5 honors GITHUB_OWNER + GITHUB_REPO"
 T14B=$(run_step5_5_test "absent" "" "acme" "widget-shop")
 
 if grep -q "bind.*<- acme/widget-shop" "$T14B/stdout.log"; then
-  echo -e "  ${GREEN}✓${NC} binding member is acme/widget-shop (not <user>/agile-flow-gcp)"
+  echo -e "  ${GREEN}✓${NC} binding member is acme/widget-shop (not <user>/gembaflow-gcp)"
   PASS=$((PASS + 1))
 else
   echo -e "  ${RED}✗${NC} expected '[bind] ... <- acme/widget-shop' in stdout"
@@ -1616,7 +1616,7 @@ echo "Test 22: Step 5.8 pre-creates Cloud Run service when absent"
 
 T22=$(run_step5_8_test "absent")
 
-if grep -q "create.*Cloud Run service.*agile-flow-app.*placeholder" "$T22/stdout.log"; then
+if grep -q "create.*Cloud Run service.*gembaflow-app.*placeholder" "$T22/stdout.log"; then
   echo -e "  ${GREEN}✓${NC} create log line names service + placeholder"
   PASS=$((PASS + 1))
 else
@@ -1625,11 +1625,11 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-if grep -q "run deploy agile-flow-app" "$T22/gcloud.log"; then
+if grep -q "run deploy gembaflow-app" "$T22/gcloud.log"; then
   echo -e "  ${GREEN}✓${NC} gcloud run deploy invoked"
   PASS=$((PASS + 1))
 else
-  echo -e "  ${RED}✗${NC} expected 'run deploy agile-flow-app' in gcloud.log"
+  echo -e "  ${RED}✗${NC} expected 'run deploy gembaflow-app' in gcloud.log"
   FAIL=$((FAIL + 1))
 fi
 
@@ -1660,7 +1660,7 @@ echo "Test 23: Step 5.8 idempotent when service already exists"
 
 T23=$(run_step5_8_test "present")
 
-if grep -q "skip.*Cloud Run service.*agile-flow-app.*already exists" "$T23/stdout.log"; then
+if grep -q "skip.*Cloud Run service.*gembaflow-app.*already exists" "$T23/stdout.log"; then
   echo -e "  ${GREEN}✓${NC} skip-existing log line"
   PASS=$((PASS + 1))
 else
