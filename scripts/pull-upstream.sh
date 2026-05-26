@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pull-upstream.sh — Apply latest framework changes from vibeacademy/agile-flow.
+# pull-upstream.sh — Apply latest framework changes from vibeacademy/gembaflow.
 #
 # Safe to run mid-workshop from a Codespace. Only updates files that exist in
 # the upstream repo AND are in the syncDirectories list. Files listed in
@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-UPSTREAM_REPO="https://github.com/vibeacademy/agile-flow.git"
+UPSTREAM_REPO="https://github.com/vibeacademy/gembaflow.git"
 UPSTREAM_REMOTE="upstream"
 VERSION_FILE=".agile-flow-version"
 OVERRIDES_FILE=".agile-flow-overrides"
@@ -146,7 +146,7 @@ done
 
 git -c user.name="pull-upstream" \
     -c user.email="noreply@github.com" \
-    commit -m "chore(upstream): sync framework files from agile-flow@${UPSTREAM_SHA:0:7}
+    commit -m "chore(upstream): sync framework files from gembaflow@${UPSTREAM_SHA:0:7}
 
 ${BODY}"
 
