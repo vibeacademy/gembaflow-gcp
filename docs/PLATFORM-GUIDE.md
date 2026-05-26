@@ -527,10 +527,10 @@ billing in exchange for zero per-attendee setup. See #104 for
 the research on this model.
 
 **If you wire Claude into a CI workflow** (none of the framework's
-shipped workflows currently do — `auto-review.yml`, `auto-fix.yml`,
-and `auto-triage.yml` are trigger scaffolding that post comments
-inviting the user to invoke `/review-pr` etc. locally; they do not
-call the Anthropic API), the `ANTHROPIC_API_KEY` your custom
+shipped workflows currently do — `auto-review.yml` and `auto-triage.yml`
+are trigger scaffolding that post comments inviting the user to invoke
+`/review-pr` etc. locally; they do not call the Anthropic API), the
+`ANTHROPIC_API_KEY` your custom
 workflow consumes IS an Actions secret. The two stores are
 independent — set both if your fork ends up needing Claude Code
 in both Codespaces and CI.

@@ -116,7 +116,6 @@ upstream when the framework updates:
 - `.claude/skills/*`
 - `.claude/settings.template.json`
 - `.github/workflows/ci.yml` (language-agnostic, auto-detects stack)
-- `.github/workflows/auto-fix.yml`
 - `.github/workflows/auto-review.yml`
 - `.github/workflows/auto-triage.yml`
 - `.github/workflows/agent-audit-report.yml`
