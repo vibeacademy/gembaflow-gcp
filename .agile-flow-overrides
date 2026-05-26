@@ -24,7 +24,6 @@ scripts/provision-workshop-roster.sh
 scripts/diagnose-cloudrun.sh
 scripts/populate-claude-md.sh
 scripts/dev-branch.sh
-scripts/template-sync.sh
 scripts/setup-labels.sh
 scripts/setup-repo-protection.sh
 scripts/setup-solo-mode.sh
