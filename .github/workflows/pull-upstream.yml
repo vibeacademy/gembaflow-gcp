@@ -65,7 +65,7 @@ jobs:
           git checkout -b "$BRANCH"
           git push origin "$BRANCH"
           PR_TITLE="chore(upstream): sync framework files from agile-flow@${UPSTREAM_SHA:0:7}"
-          PR_BODY="Upstream sync from agile-flow@${UPSTREAM_SHA:0:7}. GCP-specific overrides in .agile-flow-overrides were preserved. Triggered via the Pull Upstream workflow (workflow_dispatch). Review and merge when ready."
+          PR_BODY="Upstream sync from agile-flow@${UPSTREAM_SHA:0:7}. GCP-specific overrides in .gembaflow-overrides were preserved. Triggered via the Pull Upstream workflow (workflow_dispatch). Review and merge when ready."
           gh pr create --title "$PR_TITLE" --body "$PR_BODY" --base main --head "$BRANCH"
 
       - name: Report no changes

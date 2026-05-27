@@ -3,7 +3,7 @@
 #
 # Safe to run mid-workshop from a Codespace. Only updates files that exist in
 # the upstream repo AND are in the syncDirectories list. Files listed in
-# .agile-flow-overrides are never touched.
+# .gembaflow-overrides are never touched.
 #
 # Usage:
 #   bash scripts/pull-upstream.sh
@@ -16,8 +16,8 @@ set -euo pipefail
 
 UPSTREAM_REPO="https://github.com/vibeacademy/gembaflow.git"
 UPSTREAM_REMOTE="upstream"
-VERSION_FILE=".agile-flow-version"
-OVERRIDES_FILE=".agile-flow-overrides"
+VERSION_FILE=".gembaflow-version"
+OVERRIDES_FILE=".gembaflow-overrides"
 
 # ── Pre-flight ────────────────────────────────────────────────────────────────
 
