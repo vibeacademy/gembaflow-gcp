@@ -6,7 +6,7 @@ on the GCP edition.
 This repo ships **two** distinct framework-sync flows, and they are not
 interchangeable:
 
-| Flow | Script | Audience | Honors `.agile-flow-overrides`? | Upstream |
+| Flow | Script | Audience | Honors `.gembaflow-overrides`? | Upstream |
 |------|--------|----------|---------------------------------|----------|
 | `/pull-upstream` | `scripts/pull-upstream.sh` | Maintainer of `agile-flow-gcp` | **Yes** | `vibeacademy/agile-flow` |
 | `/upgrade` | `scripts/template-sync.sh` | Participants in their own forks | **No** | `vibeacademy/agile-flow` (hard-coded) |
@@ -57,10 +57,10 @@ The script:
 
 1. Adds `vibeacademy/agile-flow` as the `upstream` remote (idempotent).
 2. Fetches `upstream/main`.
-3. For every file in `syncDirectories` (`.agile-flow-version`) that exists
+3. For every file in `syncDirectories` (`.gembaflow-version`) that exists
    in upstream, compares blob hashes.
 4. Applies the upstream version for any file that differs.
-5. Skips files listed in `.agile-flow-overrides` (intentional GCP overrides).
+5. Skips files listed in `.gembaflow-overrides` (intentional GCP overrides).
 6. Commits the result.
 
 ### Option C — GitHub Actions (no Codespace required)
@@ -81,9 +81,9 @@ Trigger the workflow from the GitHub UI:
 ## What Gets Updated
 
 Only files that are:
-- Listed in `syncDirectories` in `.agile-flow-version`, AND
+- Listed in `syncDirectories` in `.gembaflow-version`, AND
 - Present in the upstream repo, AND
-- **Not** listed in `.agile-flow-overrides`
+- **Not** listed in `.gembaflow-overrides`
 
 are ever modified. Application code (`app/`, `alembic/`, `templates/`,
 `static/`), infrastructure files (`Dockerfile`, `.github/workflows/deploy.yml`),
@@ -104,7 +104,7 @@ and GCP-specific scripts are never touched.
 ## Conflict Handling
 
 The script prefers **upstream** for all tracked files. There are no 3-way
-merges — it takes the upstream blob directly. Files in `.agile-flow-overrides`
+merges — it takes the upstream blob directly. Files in `.gembaflow-overrides`
 are protected and never touched, so true conflicts are prevented by design.
 
 If a conflict cannot be resolved automatically (e.g. a tracked file was
@@ -164,17 +164,17 @@ they run `/upgrade` in their fork. This is a different mechanism from
 `/upgrade` is a Claude Code wrapper around `scripts/template-sync.sh`. In
 a participant's fork the script:
 
-1. Reads the local version from `.agile-flow-version`.
+1. Reads the local version from `.gembaflow-version`.
 2. Calls the public GitHub API for
    `vibeacademy/agile-flow/releases/latest` to find the latest release tag.
    The upstream repo is hard-coded inside `scripts/template-sync.sh`; see
    §7 for the implication.
 3. If the local version matches the tag, exits with `Already up to date`.
 4. Otherwise, downloads the release tarball and **copies** every file in
-   each path listed in `syncDirectories` (in `.agile-flow-version`) into
+   each path listed in `syncDirectories` (in `.gembaflow-version`) into
    the participant's working tree, overwriting any local file that
    differs.
-5. Bumps `version` in `.agile-flow-version`, creates a branch
+5. Bumps `version` in `.gembaflow-version`, creates a branch
    `agile-flow-sync/v{LATEST_VERSION}`, commits as `github-actions[bot]`,
    pushes, and runs `gh pr create` to open a sync PR against the
    participant's `main`.
@@ -237,7 +237,7 @@ vibeacademy/agile-flow                (release published)
         │
         │  Hop 1 — maintainer-driven, optional
         │  scripts/pull-upstream.sh   (§§1–4 above)
-        │  Honors .agile-flow-overrides
+        │  Honors .gembaflow-overrides
         ▼
 vibeacademy/agile-flow-gcp            (GCP edition, this repo)
         │
@@ -248,7 +248,7 @@ vibeacademy/agile-flow-gcp            (GCP edition, this repo)
         ▲
         │  Hop 2 — participant-driven
         │  scripts/template-sync.sh via /upgrade  (§5 above)
-        │  Does NOT honor .agile-flow-overrides
+        │  Does NOT honor .gembaflow-overrides
         │  Pulls from vibeacademy/agile-flow, NOT from
         │  vibeacademy/agile-flow-gcp
         │
@@ -269,7 +269,7 @@ Hop 2 does not transit through `vibeacademy/agile-flow-gcp`.
 - To get a GCP-specific customisation onto a participant's fork through
   `/upgrade`, the customisation has to land in `vibeacademy/agile-flow`
   itself, then in a tagged release, then the participant runs `/upgrade`.
-- `.agile-flow-overrides` does not protect the participant's fork from
+- `.gembaflow-overrides` does not protect the participant's fork from
   `/upgrade` either. That file is only consulted by `scripts/pull-upstream.sh`
   (hop 1).
 - The "merge it in `agile-flow-gcp` and ask participants to pull" path
@@ -311,13 +311,13 @@ prompts, they need to either:
 - Pull from a remote that points at `vibeacademy/agile-flow-gcp` rather
   than relying on `/upgrade`.
 
-### `/upgrade` does not honor `.agile-flow-overrides`
+### `/upgrade` does not honor `.gembaflow-overrides`
 
-`.agile-flow-overrides` is read by `scripts/pull-upstream.sh` only. It is
+`.gembaflow-overrides` is read by `scripts/pull-upstream.sh` only. It is
 **not** read by `scripts/template-sync.sh`. A participant running
 `/upgrade` will receive every file inside `syncDirectories` exactly as it
 appears in the upstream release, regardless of what is listed in
-`.agile-flow-overrides`.
+`.gembaflow-overrides`.
 
 If a participant has hand-edited a file inside `syncDirectories`, the
 sync PR diff will show the revert and they can choose not to merge.
@@ -366,8 +366,8 @@ git push origin --delete agile-flow-sync/v{VERSION}
 
 | Path | Role |
 |------|------|
-| `.agile-flow-version` | Local version + `syncDirectories` whitelist (consumed by both scripts). |
-| `.agile-flow-overrides` | Protected paths for `scripts/pull-upstream.sh` only (hop 1). Not read by `scripts/template-sync.sh`. |
+| `.gembaflow-version` | Local version + `syncDirectories` whitelist (consumed by both scripts). |
+| `.gembaflow-overrides` | Protected paths for `scripts/pull-upstream.sh` only (hop 1). Not read by `scripts/template-sync.sh`. |
 | `scripts/pull-upstream.sh` | Maintainer-facing GCP-only script. Hop 1. |
 | `scripts/template-sync.sh` | Participant-facing release-tarball sync. Hop 2. Hard-codes `vibeacademy/agile-flow` as upstream. |
 | `.claude/commands/pull-upstream.md` | The `/pull-upstream` Claude Code wrapper. |

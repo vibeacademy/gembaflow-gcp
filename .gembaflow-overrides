@@ -1,4 +1,4 @@
-# .agile-flow-overrides
+# .gembaflow-overrides
 #
 # Files in syncDirectories that are intentionally customised for this fork.
 # pull-upstream.sh and template-sync.sh will never overwrite these.

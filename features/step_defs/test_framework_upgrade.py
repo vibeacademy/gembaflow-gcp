@@ -12,13 +12,13 @@ from pytest_bdd import given, then, when
 def given_agile_flow_directory(temp_project_dir, context):
     """Ensure we're in an Agile Flow project directory."""
     context["project_dir"] = temp_project_dir
-    assert (temp_project_dir / ".agile-flow-version").exists()
+    assert (temp_project_dir / ".gembaflow-version").exists()
 
 
-@given('I have a valid ".agile-flow-version" file with version, upstream, and syncDirectories')
+@given('I have a valid ".gembaflow-version" file with version, upstream, and syncDirectories')
 def given_valid_version_file(temp_project_dir, context):
-    """Ensure valid .agile-flow-version file exists."""
-    version_file = temp_project_dir / ".agile-flow-version"
+    """Ensure valid .gembaflow-version file exists."""
+    version_file = temp_project_dir / ".gembaflow-version"
     version_data = {
         "version": "1.0.0",
         "upstream": "vibeacademy/agile-flow-gcp",
@@ -226,12 +226,12 @@ def then_create_sync_branch(context):
         assert context.get("sync_result") is not None
 
 
-@then('it should update the version in ".agile-flow-version"')
+@then('it should update the version in ".gembaflow-version"')
 def then_update_version_file(temp_project_dir, context):
     """Verify version file is updated."""
     if context.get("pr_created"):
         # In a real scenario, the version file would be updated
-        version_file = temp_project_dir / ".agile-flow-version"
+        version_file = temp_project_dir / ".gembaflow-version"
         assert version_file.exists()
 
 

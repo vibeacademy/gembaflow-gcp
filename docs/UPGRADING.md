@@ -19,7 +19,7 @@ end users of this track, and one for the fork's maintainer:
 | Path | Audience | How to invoke | What it does |
 |------|----------|---------------|--------------|
 | `/upgrade` | End users | Slash command | Pulls the latest tagged release of this track and opens a sync PR. |
-| `/pull-upstream` | Maintainer only | `scripts/pull-upstream.sh` | Pulls the founder framework into this fork while honoring `.agile-flow-overrides`. **Not exposed as a slash command here.** |
+| `/pull-upstream` | Maintainer only | `scripts/pull-upstream.sh` | Pulls the founder framework into this fork while honoring `.gembaflow-overrides`. **Not exposed as a slash command here.** |
 
 If you are a customer of this template, **always use `/upgrade`**. The
 `/pull-upstream` slash command is intentionally absent from this repo —
@@ -35,7 +35,7 @@ been removed.
 ## Check Your Current Version
 
 ```bash
-jq .version .agile-flow-version
+jq .version .gembaflow-version
 ```
 
 The `/doctor` command also checks for updates automatically and warns you if
@@ -74,9 +74,9 @@ The workflow runs the same sync script and opens a pull request.
 ## What Happens During an Upgrade
 
 1. The sync script fetches the latest release from `vibeacademy/agile-flow`.
-2. It compares your local version (from `.agile-flow-version`) to the latest.
+2. It compares your local version (from `.gembaflow-version`) to the latest.
 3. If an update is available, it downloads the release and copies only the
-   directories listed in `syncDirectories` (inside `.agile-flow-version`):
+   directories listed in `syncDirectories` (inside `.gembaflow-version`):
    - `.claude/agents`
    - `.claude/commands`
    - `.claude/hooks`
@@ -85,7 +85,7 @@ The workflow runs the same sync script and opens a pull request.
    - `starters`
 4. It creates a branch (`agile-flow-sync/v{VERSION}`), commits the changes,
    and opens a pull request.
-5. Your `.agile-flow-version` file is updated with the new version number.
+5. Your `.gembaflow-version` file is updated with the new version number.
 
 **Your code is safe.** Application code (`app/`, `__tests__/`), product docs
 (`PRODUCT-REQUIREMENTS.md`, `PRODUCT-ROADMAP.md`), deployment config
@@ -184,6 +184,6 @@ If the automated sync does not work for your setup, you can upgrade manually:
 3. Copy the framework directories (`.claude/agents`, `.claude/commands`,
    `.claude/hooks`, `.claude/skills`, `scripts`, `starters`) into your
    project, overwriting existing files.
-4. Update the `version` field in `.agile-flow-version` to match the release
+4. Update the `version` field in `.gembaflow-version` to match the release
    tag.
 5. Commit the changes and open a pull request for review.
