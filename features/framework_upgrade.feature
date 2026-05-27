@@ -5,7 +5,7 @@ Feature: Framework Upgrade
 
   Background:
     Given I am in an Agile Flow project directory
-    And I have a valid ".agile-flow-version" file with version, upstream, and syncDirectories
+    And I have a valid ".gembaflow-version" file with version, upstream, and syncDirectories
     And I have git configured with appropriate credentials
     And I am in a GitHub Actions environment or have gh CLI configured
 
@@ -26,7 +26,7 @@ Feature: Framework Upgrade
     And it should extract the tarball to a temporary directory
     And it should sync each directory/file listed in syncDirectories
     And it should create a new branch named "agile-flow-sync/v{version}"
-    And it should update the version in ".agile-flow-version"
+    And it should update the version in ".gembaflow-version"
     And it should commit changes with message "chore(sync): update Agile Flow framework to v{version}"
     And it should push the branch to origin
     And it should create a PR with title "chore(sync): update Agile Flow framework to v{version}"

@@ -116,7 +116,7 @@ fix it on a regular PR before continuing.
       `## [X.Y.Z] - YYYY-MM-DD` heading. The `[Unreleased]` section
       has been promoted (or the entries copied) into the new version
       heading. The bottom-of-file compare links have been updated.
-- [ ] **`.agile-flow-version` `version` field matches** the tag you
+- [ ] **`.gembaflow-version` `version` field matches** the tag you
       are about to cut (without the leading `v`). Bump and commit if
       not.
 - [ ] **`scripts/template-sync.sh` `UPSTREAM_REPO` is

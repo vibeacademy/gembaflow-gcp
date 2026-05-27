@@ -46,7 +46,7 @@ dev = ["pytest>=8.0", "pytest-bdd>=7.0"]
 
         (project_path / "CLAUDE.md").write_text("# Test Project")
 
-        (project_path / ".agile-flow-version").write_text("""
+        (project_path / ".gembaflow-version").write_text("""
 {
   "version": "1.0.0",
   "upstream": "vibeacademy/agile-flow-gcp",

@@ -6,7 +6,7 @@ Feature: Framework Upgrade
   Background:
     Given I have an Agile Flow project
     And I am in the project root directory
-    And the ".agile-flow-version" file exists
+    And the ".gembaflow-version" file exists
 
   Scenario: Successful upgrade to newer version
     Given my local version is "0.9.0"
@@ -17,7 +17,7 @@ Feature: Framework Upgrade
     Then it should download the latest release tarball
     And it should sync files from syncDirectories
     And it should create a new branch "agile-flow-sync/v1.0.0"
-    And it should update ".agile-flow-version" to "1.0.0"
+    And it should update ".gembaflow-version" to "1.0.0"
     And it should commit the changes with message "chore(sync): update Agile Flow framework to v1.0.0"
     And it should push the branch to origin
     And it should create a pull request
