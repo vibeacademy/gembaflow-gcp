@@ -546,6 +546,167 @@ secret store, not Actions secrets), with the canonical "do NOT set
 
 ---
 
+## Workshop deployment models
+
+Gemba Flow supports three distinct deployment models for cohort
+workshops. The choice affects who pays, what attendees configure
+before day 1, and how the workshop offboards. The framework code
+supports all three; the lifecycle scripts (next section) parametrize
+over them.
+
+If you are an attendee reading this to figure out which model your
+workshop uses, ask your facilitator. The three models look identical
+from inside the Codespace once `claude` is running — they differ in
+the steps you took (or didn't) to get there.
+
+### Model 1 — Shared cohort project
+
+The baseline model. One shared Neon project for the whole cohort,
+attendees work in their own Neon branches inside it. GCP and GitHub
+resources live in whichever account the attendee or facilitator
+chose ahead of time — the model doesn't prescribe ownership.
+
+- **Architecture:** one Neon project (`<cohort-name>`), one branch
+  per attendee. GCP project and GitHub repo ownership unconstrained.
+- **Cost model:** facilitator pays for Neon if the project is on
+  their billing; otherwise whoever owns the project pays. GCP and
+  Anthropic costs follow whichever accounts own those resources.
+- **Pre-workshop facilitator setup:** create the Neon project,
+  provision per-attendee branches, share branch credentials with
+  attendees.
+- **Pre-workshop attendee setup:** receive Neon branch credentials,
+  configure Codespaces secrets, generate GitHub PAT.
+- **Free-tier vs paid:** Neon Free covers one project with up to
+  10 branches — workable for ≤10 attendees if no other branches
+  are in use. Beyond that, Neon Launch ($19/mo prorated).
+- **Cleanup:** delete the shared Neon project (one command) or
+  prune per-attendee branches if the project survives the workshop.
+
+### Model 2 — Per-attendee personal accounts
+
+Each attendee brings their own GitHub account, Neon account, GCP
+account, and Anthropic API key. The framework provisions everything
+inside the attendee's own accounts. The facilitator pays nothing
+beyond Anthropic API costs for their own demos.
+
+- **Architecture:** attendee owns the GitHub repo (fork or template
+  instantiation), their own Neon project (free tier per attendee),
+  their own GCP project, their own Anthropic key.
+- **Cost model:** distributed. Each attendee pays for their own
+  resources. Most stay inside free tiers across the workshop window.
+- **Pre-workshop facilitator setup:** publish the pre-work email
+  and the Loom that walks through Anthropic / Neon / GCP signup.
+- **Pre-workshop attendee setup:** the full first-time setup —
+  GitHub PAT (per `docs/GETTING-STARTED.md` Prerequisites), Neon
+  signup, GCP project + WIF, Anthropic key, six Codespaces secrets.
+  Budget 60–90 minutes the night before.
+- **Free-tier vs paid:** Neon Free per attendee covers single-project
+  use. GCP free tier covers Cloud Run + Artifact Registry for a
+  2-day workshop's traffic. Anthropic is pay-as-you-go from each
+  attendee's account.
+- **Cleanup:** each attendee owns their own teardown. The framework's
+  `scripts/workshop-teardown.sh` isn't applicable since the
+  facilitator doesn't have access to attendee resources. Attendees
+  who want to keep their work do nothing; attendees who want to
+  delete run `gcloud projects delete` and Neon project delete
+  themselves.
+
+### Model 3 — Org-hosted workshop (May 2026+)
+
+The facilitator's GitHub org owns every attendee repo, every Neon
+project, and a single shared GCP project for the workshop window.
+All secrets inject at the org-Codespaces level. Attendees configure
+zero secrets pre-workshop; if their workshop doesn't require the
+`project` PAT scope, they configure nothing at all. Post-workshop,
+attendees transfer their repo to their own GitHub account and
+re-host on their own infra at their own pace.
+
+This is the model used for the Gemba Flow May 2026 GCP cohort.
+
+- **Architecture:** repo at `<facilitator-org>/<handle>` (e.g.
+  `vibeacademy/alice`), one Neon project per attendee under a
+  shared facilitator-owned Neon org, one shared GCP project
+  (`af-<handle>-<cohort>` per attendee for Cloud Run service
+  naming), one shared Anthropic key with a spend cap.
+- **Cost model:** facilitator absorbs everything for the workshop
+  window. Reference: ~$55–125 per cohort for 8 attendees over
+  2 days (Anthropic + Neon + GCP + GitHub Codespaces combined).
+  Bake into workshop fee.
+- **Pre-workshop facilitator setup:** Anthropic org secret with
+  spend cap; Neon org + per-attendee projects; GCP project with
+  WIF pool trusting `<facilitator-org>/*`; org Codespaces secrets
+  injected automatically to all attendee repos. Detailed runbook
+  lives in the facilitator-private Gemba Flow meta docs; the
+  operational mechanics this end documents are below.
+- **Pre-workshop attendee setup:** at most one step — configure
+  a GitHub PAT as a Codespaces user secret named `GH_TOKEN` if
+  `/bootstrap-workflow` needs the `project` scope (which the
+  auto-injected `GITHUB_TOKEN` doesn't grant). If `project` scope
+  is not required for your bootstrap path, attendees configure
+  zero secrets pre-workshop.
+- **Free-tier vs paid:** facilitator-side, Neon Launch (~$5–10
+  prorated for 2 days, ~10 projects) and GCP usage are paid; the
+  facilitator's Anthropic billing absorbs API spend up to the
+  configured cap. Attendees see no bills during the workshop.
+- **Cleanup:** facilitator runs `scripts/workshop-teardown.sh`
+  with the cohort roster to delete the per-attendee GCP projects
+  (~30-day GCP soft-delete window) and either deletes the Neon
+  org outright or invites attendees individually to migrate.
+  Anthropic key gets rotated after every cohort.
+
+### When to use which model
+
+| Situation | Recommended model | Why |
+|---|---|---|
+| Public workshop, time-to-bootstrap is the dominant constraint | **Model 3** (org-hosted) | Collapses pre-workshop attendee setup to zero or one steps. Worth the per-cohort cost in workshop fee. |
+| Cohort of seasoned engineers who already have their own accounts | **Model 2** (per-attendee) | Avoids the offboarding transfer; attendees keep their own infra from the start. |
+| Internal team training where attendees keep working on the project after the workshop | **Model 2** (per-attendee) | Same — no transfer ceremony needed. |
+| Mixed cohort (some BYO, some don't) | **Model 3** for the cohort, then offboarding for those who want their own infra | One operational mode during the workshop; opt-in transfer afterward. |
+| Cohort larger than ~8 attendees | Re-evaluate **Model 3** | Org Codespaces secret limits and per-attendee Neon billing may pass break-even — verify against your GitHub plan and Neon tier first. |
+| Single-evaluator (not a workshop) | **Model 2** | One-person workshop is just personal-account use; org-hosted overhead doesn't earn its complexity. |
+
+**May 2026 cohort chose Model 3.** Rationale: the dry-run on a
+personal-account model surfaced the pre-workshop attendee setup
+(PAT generation + multiple Codespaces secrets + Anthropic-account
+login) as the dominant time-to-bootstrap blocker. The org-hosted
+model collapses all of that to facilitator-side setup.
+
+### Migrating between models
+
+The relevant migration is **Model 3 → Model 2 post-workshop** —
+attendees who want to take their work home re-host on their own
+infrastructure after the cohort ends.
+
+The flow, end-to-end:
+
+1. Attendee creates their own GCP project + WIF pool + Artifact
+   Registry + billing account binding.
+2. Attendee creates their own Neon project (free tier is sufficient
+   for solo work).
+3. Attendee creates their own Anthropic API key.
+4. Attendee transfers `<facilitator-org>/<handle>` to
+   `<their-handle>/<repo-name>` via `gh repo transfer`. GitHub
+   preserves issues, PRs, and project-board associations across
+   the transfer.
+5. Attendee re-creates Codespaces user secrets in their own account
+   to replace the org secrets they no longer have access to.
+6. Attendee updates GitHub Actions secrets in the transferred repo
+   to point at their own GCP / Neon.
+7. Attendee triggers a deploy to their own Cloud Run service to
+   verify the new wiring.
+
+Estimated effort: 60–90 minutes for an attendee who paid attention
+during the workshop. The detailed offboarding runbook lives in the
+facilitator's Gemba Flow meta docs; ask your facilitator for the
+copy applicable to your cohort.
+
+The reverse migration (Model 2 → Model 3 mid-cohort) is not
+supported and would require manual repo transfer, secret migration,
+and resource re-provisioning per attendee. Pick the model before
+provisioning the cohort.
+
+---
+
 ## Workshop: Lifecycle (Setup and Teardown)
 
 When running a workshop, the facilitator's mental model is two commands:
