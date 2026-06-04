@@ -118,9 +118,29 @@ for you, identically across all attendees.
 2. Wait ~60 seconds for the container to provision.
 3. Run `gcloud auth login` in the integrated terminal to authenticate
    with GCP (browser OAuth flow).
-4. The Claude Code extension is preinstalled. **Before starting an
-   agent session, set your Anthropic API key as a Codespaces secret
-   so Claude Code authenticates from env without a browser flow:**
+4. The Claude Code extension is preinstalled. Open the integrated
+   terminal (Ctrl+backtick) and run `claude`. **Expect a browser
+   OAuth prompt the first time** — Claude Code's interactive CLI
+   authenticates against your Anthropic account (or Claude.ai
+   subscription, if you have one on the same email) via OAuth, even
+   in a Codespace. This is the IDE/CLI's expected path; it is not a
+   misconfiguration. (This is your **Anthropic account**, separate
+   from the GitHub and Google Cloud auths above.)
+
+   **Optional but recommended: also set `ANTHROPIC_API_KEY` as a
+   Codespaces secret.** The env var does NOT skip the interactive
+   browser flow (empirically verified — Claude Code's interactive
+   session prefers OAuth/subscription auth over `ANTHROPIC_API_KEY`
+   for IDE/CLI sessions), but it IS needed for:
+   - App code that calls the Anthropic SDK directly (e.g., a fork
+     with `app/llm/anthropic_client.py`)
+   - Headless `claude -p "..."` one-shot invocations from scripts or
+     CI-like flows where no browser is available
+   - Separating Anthropic API billing from your Claude.ai
+     subscription (some attendees want the workshop on a fresh
+     pay-as-you-go key)
+
+   To set the Codespaces secret:
    - Open `https://github.com/settings/codespaces` → **Codespaces
      secrets** → **New secret**
    - Name: `ANTHROPIC_API_KEY`. Value: a key from
@@ -131,19 +151,11 @@ for you, identically across all attendees.
    - **Important:** this MUST be a *Codespaces* secret, NOT a repo
      **Actions** secret. Actions secrets are scoped to GitHub
      workflow runs and are not injected into Codespaces — setting
-     `ANTHROPIC_API_KEY` there won't help Claude Code in your
-     terminal. (See FAQ: "Why is Claude Code asking me to log in
-     via browser in my Codespace?")
+     `ANTHROPIC_API_KEY` there won't reach the env vars your app
+     code or `claude -p` invocations read. (See FAQ: "Why is Claude
+     Code asking me to log in via browser in my Codespace?")
    - If your Codespace is already running, restart it so the new
      secret is picked up.
-
-   Then open the integrated terminal (Ctrl+backtick) and run
-   `claude`. You should land directly in an agent session. If Claude Code
-   prompts you to authenticate via browser, the secret isn't
-   reaching the Codespace — see the FAQ entry above. The browser
-   flow still works as a fallback if you'd rather not configure
-   the secret (this is your **Anthropic account**, separate from
-   the GitHub and Google Cloud auths above).
 5. Skip to **Step 2: Set Up GitHub Access** below — except gh is
    already authenticated, so you can skip Step 2 entirely.
 6. **For local-dev work** (running the FastAPI app, iterating on
