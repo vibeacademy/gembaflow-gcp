@@ -77,6 +77,16 @@ above instead.
 
 ## Step 1: Create Your Project from the Template
 
+> **Workshop attendees — check with your facilitator before this step.**
+> Gemba Flow supports three workshop deployment models, and only one of
+> them (per-attendee personal accounts) has you creating the repo
+> yourself. If your workshop is org-hosted (e.g., the May 2026 cohort),
+> your facilitator already created `<facilitator-org>/<your-handle>`
+> for you — skip ahead to **Path A: GitHub Codespace** below and open
+> a Codespace on that repo. See
+> [`docs/PLATFORM-GUIDE.md` → Workshop deployment models](PLATFORM-GUIDE.md#workshop-deployment-models)
+> for the model comparison.
+
 Go to the [Agile Flow template](https://github.com/vibeacademy/agile-flow)
 on GitHub and click **"Use this template" > "Create a new repository"**.
 
@@ -150,7 +160,10 @@ gh scopes are already verified.
 > **Workshop note for facilitators:** Codespaces is per-attendee
 > billing on a 2-core machine — roughly $15-25 of compute per cohort
 > for a 2-day workshop. See `docs/PLATFORM-GUIDE.md` "Codespace cost
-> estimate" for current numbers.
+> estimate" for current numbers, and
+> [Workshop deployment models](PLATFORM-GUIDE.md#workshop-deployment-models)
+> for the decision matrix on shared-cohort vs per-attendee vs
+> org-hosted models.
 >
 > **Closed-network attendees:** if your corporate firewall blocks
 > `*.github.dev` or VS Code Server, Codespaces won't work — use Path B
