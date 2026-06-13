@@ -12,7 +12,7 @@ If you're a workshop attendee and your facilitator already configured Codespaces
 |---|---|---|---|
 | **Production** (Cloud Run) | The `PRODUCTION_DATABASE_URL` Actions secret is passed as a plain env var to Cloud Run at deploy time (`--set-env-vars DATABASE_URL=...`). The Cloud Run revision reads `DATABASE_URL` from its env. | GitHub repo **Actions** secret named `PRODUCTION_DATABASE_URL`. Set automatically by `scripts/provision-gcp-project.sh` Step 7. | Set once per deploy. The deploy workflow at `.github/workflows/deploy.yml:93,162` pulls the secret value and forwards it. |
 | **CI preview** (per-PR Cloud Run revision) | `neondatabase/create-branch-action@v5` mints an ephemeral Neon branch off `main` per PR. The branch's pooled URL becomes `DATABASE_URL` on the preview Cloud Run revision. | GitHub repo **Actions** secrets `NEON_API_KEY` + `NEON_PROJECT_ID`. Set automatically during `provision-gcp-project.sh` Step 7 (alongside `PRODUCTION_DATABASE_URL`). | Computed per-PR by `.github/workflows/preview-deploy.yml`. Branch is auto-suspended on inactivity and torn down when the PR closes. |
-| **Local Codespace** | You run a Neon dev-branch helper (`scripts/dev-branch.sh` — see [#159](https://github.com/vibeacademy/agile-flow-gcp/issues/159)) which creates an ephemeral branch off `main` and writes its pooled URL into `.env`. Your dev server reads `DATABASE_URL` from `.env` via `app/config.py`. | **Codespaces** secrets `NEON_API_KEY` + `NEON_PROJECT_ID`. Distinct scope from Actions secrets — each store has its own UI and visibility model. | Per-session. Mint a dev branch when you start working, tear it down when you're done (or on a schedule via Neon's auto-suspend). |
+| **Local Codespace** | You run a Neon dev-branch helper (`scripts/dev-branch.sh` — see [#159](https://github.com/vibeacademy/gembaflow-gcp/issues/159)) which creates an ephemeral branch off `main` and writes its pooled URL into `.env`. Your dev server reads `DATABASE_URL` from `.env` via `app/config.py`. | **Codespaces** secrets `NEON_API_KEY` + `NEON_PROJECT_ID`. Distinct scope from Actions secrets — each store has its own UI and visibility model. | Per-session. Mint a dev branch when you start working, tear it down when you're done (or on a schedule via Neon's auto-suspend). |
 
 GitHub has two completely independent secret stores:
 
@@ -48,7 +48,7 @@ You need two Codespaces secrets visible from inside the Codespace:
 
 ### Mint a dev branch
 
-> **Note:** The script referenced below ships in [#159](https://github.com/vibeacademy/agile-flow-gcp/issues/159) (sibling to this doc within the local-dev epic [#157](https://github.com/vibeacademy/agile-flow-gcp/issues/157)). Until #159 lands, the same flow works manually using `neonctl` directly — see "Manual fallback" at the bottom of this doc.
+> **Note:** The script referenced below ships in [#159](https://github.com/vibeacademy/gembaflow-gcp/issues/159) (sibling to this doc within the local-dev epic [#157](https://github.com/vibeacademy/gembaflow-gcp/issues/157)). Until #159 lands, the same flow works manually using `neonctl` directly — see "Manual fallback" at the bottom of this doc.
 
 ```bash
 bash scripts/dev-branch.sh
@@ -88,7 +88,7 @@ Running local dev against the same Neon flavor production uses catches these in 
 
 ## Manual fallback (until `dev-branch.sh` lands)
 
-If [#159](https://github.com/vibeacademy/agile-flow-gcp/issues/159) hasn't shipped yet, the same flow works with `neonctl`:
+If [#159](https://github.com/vibeacademy/gembaflow-gcp/issues/159) hasn't shipped yet, the same flow works with `neonctl`:
 
 ```bash
 # Install neonctl if not already
@@ -113,7 +113,7 @@ neonctl branches delete "$BRANCH_NAME" --project-id "$NEON_PROJECT_ID"
 rm .env
 ```
 
-`scripts/dev-branch.sh` automates exactly this sequence with idempotency, error handling, and a `--teardown` flag. Track [#159](https://github.com/vibeacademy/agile-flow-gcp/issues/159) for the helper.
+`scripts/dev-branch.sh` automates exactly this sequence with idempotency, error handling, and a `--teardown` flag. Track [#159](https://github.com/vibeacademy/gembaflow-gcp/issues/159) for the helper.
 
 ---
 
@@ -122,6 +122,6 @@ rm .env
 - `docs/PLATFORM-GUIDE.md` — production + CI-preview architecture in depth
 - `docs/GETTING-STARTED.md` — first-time setup walkthrough (Codespace + GitHub PAT + Anthropic key)
 - `docs/PATTERN-LIBRARY.md` — Neon-specific gotchas (cold-wake, region match, per-PR branching)
-- [#159](https://github.com/vibeacademy/agile-flow-gcp/issues/159) — `scripts/dev-branch.sh` (sibling ticket)
-- [#160](https://github.com/vibeacademy/agile-flow-gcp/issues/160) — Codespaces org-secrets runbook (the operational complement)
-- [#157](https://github.com/vibeacademy/agile-flow-gcp/issues/157) — parent epic
+- [#159](https://github.com/vibeacademy/gembaflow-gcp/issues/159) — `scripts/dev-branch.sh` (sibling ticket)
+- [#160](https://github.com/vibeacademy/gembaflow-gcp/issues/160) — Codespaces org-secrets runbook (the operational complement)
+- [#157](https://github.com/vibeacademy/gembaflow-gcp/issues/157) — parent epic

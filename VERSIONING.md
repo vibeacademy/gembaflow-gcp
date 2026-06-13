@@ -40,4 +40,4 @@ The DevOps Engineer (GCP) owns that process.
 
 ## Current Version
 
-See the latest [GitHub Release](https://github.com/vibeacademy/agile-flow-gcp/releases) or the top entry in [CHANGELOG.md](./CHANGELOG.md).
+See the latest [GitHub Release](https://github.com/vibeacademy/gembaflow-gcp/releases) or the top entry in [CHANGELOG.md](./CHANGELOG.md).

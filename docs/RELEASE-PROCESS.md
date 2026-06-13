@@ -1,7 +1,7 @@
 # Release Process — `agile-flow-gcp`
 
 Maintainer-facing guide for cutting GitHub Releases on
-[`vibeacademy/agile-flow-gcp`](https://github.com/vibeacademy/agile-flow-gcp).
+[`vibeacademy/gembaflow-gcp`](https://github.com/vibeacademy/gembaflow-gcp).
 
 > **Audience:** the named release owner and anyone covering for them.
 > Workshop participants do not run this process — they consume releases
@@ -28,10 +28,10 @@ cadence. It is **not** a strict mirror of `vibeacademy/agile-flow`.
 
 | Concern | `agile-flow` (founder track) | `agile-flow-gcp` (this repo) |
 |---------|------------------------------|------------------------------|
-| Source of truth for releases | `vibeacademy/agile-flow` | `vibeacademy/agile-flow-gcp` |
+| Source of truth for releases | `vibeacademy/agile-flow` | `vibeacademy/gembaflow-gcp` |
 | Stack | Next.js / TypeScript / Render / Supabase | FastAPI / Python / Cloud Run / Neon |
 | Consumed by | Non-GCP workshop forks | GCP-track workshop forks |
-| `template-sync.sh` `UPSTREAM_REPO` | `vibeacademy/agile-flow` | `vibeacademy/agile-flow-gcp` |
+| `template-sync.sh` `UPSTREAM_REPO` | `vibeacademy/agile-flow` | `vibeacademy/gembaflow-gcp` |
 
 This separation is the operational outcome of [ADR-001](../UPSTREAM.md):
 the GCP track has diverged enough from the founder track that a strict
@@ -120,12 +120,12 @@ fix it on a regular PR before continuing.
       are about to cut (without the leading `v`). Bump and commit if
       not.
 - [ ] **`scripts/template-sync.sh` `UPSTREAM_REPO` is
-      `vibeacademy/agile-flow-gcp`** — not the founder track. This
+      `vibeacademy/gembaflow-gcp`** — not the founder track. This
       is the most common drift point because the GCP repo was forked
       from a founder-track tree that pointed at itself. Confirm with:
       ```bash
       grep '^UPSTREAM_REPO=' scripts/template-sync.sh
-      # expected: UPSTREAM_REPO="vibeacademy/agile-flow-gcp"
+      # expected: UPSTREAM_REPO="vibeacademy/gembaflow-gcp"
       ```
 - [ ] **CI is green on `main`** at the commit you are about to tag.
 - [ ] **Key framework files differ from the prior release as
@@ -196,7 +196,7 @@ The `release.yml` workflow picks it up on tag push.
    ```
    The workflow extracts the matching `CHANGELOG.md` section and
    publishes a GitHub Release at
-   `https://github.com/vibeacademy/agile-flow-gcp/releases/tag/vX.Y.Z`.
+   `https://github.com/vibeacademy/gembaflow-gcp/releases/tag/vX.Y.Z`.
    Source: [`.github/workflows/release.yml`](../.github/workflows/release.yml).
 
 If the workflow fails:
@@ -218,12 +218,12 @@ After the workflow completes:
 
 1. **Release is visible:**
    ```bash
-   gh release view vX.Y.Z --repo vibeacademy/agile-flow-gcp
+   gh release view vX.Y.Z --repo vibeacademy/gembaflow-gcp
    ```
 2. **`releases/latest` resolves to the new tag** — this is the
    endpoint `template-sync.sh` and `/upgrade` consume:
    ```bash
-   curl -sf https://api.github.com/repos/vibeacademy/agile-flow-gcp/releases/latest \
+   curl -sf https://api.github.com/repos/vibeacademy/gembaflow-gcp/releases/latest \
      | grep '"tag_name"'
    ```
 3. **End-to-end `/upgrade` smoke test** — in a throwaway clone of
@@ -242,7 +242,7 @@ If a release reaches downstream forks with a serious regression:
    that `/upgrade` itself fails), retract the GitHub Release while
    leaving the tag in place:
    ```bash
-   gh release delete vX.Y.Z --repo vibeacademy/agile-flow-gcp
+   gh release delete vX.Y.Z --repo vibeacademy/gembaflow-gcp
    ```
    This removes the release from `releases/latest` and causes
    downstream `/upgrade` to fall back to the previous release. Open

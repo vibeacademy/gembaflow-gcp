@@ -21,12 +21,12 @@ def given_valid_version_file(temp_project_dir, context):
     version_file = temp_project_dir / ".gembaflow-version"
     version_data = {
         "version": "1.0.0",
-        "upstream": "vibeacademy/agile-flow-gcp",
+        "upstream": "vibeacademy/gembaflow-gcp",
         "syncDirectories": ["scripts/", ".github/workflows/", "docs/"],
     }
     version_file.write_text(json.dumps(version_data, indent=2))
     context["current_version"] = "1.0.0"
-    context["upstream_repo"] = "vibeacademy/agile-flow-gcp"
+    context["upstream_repo"] = "vibeacademy/gembaflow-gcp"
 
 
 @given("I have git configured with appropriate credentials")

@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     # Don't run on the upstream template repo itself — only on forks that
     # have configured their own GCP project.
-    if: github.repository != 'vibeacademy/agile-flow-gcp'
+    if: github.repository != 'vibeacademy/gembaflow-gcp'
 
     env:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}

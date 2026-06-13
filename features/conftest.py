@@ -49,7 +49,7 @@ dev = ["pytest>=8.0", "pytest-bdd>=7.0"]
         (project_path / ".gembaflow-version").write_text("""
 {
   "version": "1.0.0",
-  "upstream": "vibeacademy/agile-flow-gcp",
+  "upstream": "vibeacademy/gembaflow-gcp",
   "syncDirectories": [
     "scripts/",
     ".github/workflows/",

@@ -7,7 +7,7 @@ Feature: Deployment Pipeline
     Given I have an Agile Flow project configured for Google Cloud Platform
     And I have the required GitHub secrets configured
     And I am pushing changes to the main branch
-    And the repository is not the upstream template (vibeacademy/agile-flow-gcp)
+    And the repository is not the upstream template (vibeacademy/gembaflow-gcp)
 
   Scenario: Deploy with Workload Identity Federation
     Given GCP_PROJECT_ID secret is configured
@@ -46,7 +46,7 @@ Feature: Deployment Pipeline
     And the workflow should complete with success status
 
   Scenario: Skip deployment on upstream template repository
-    Given I am pushing to the vibeacademy/agile-flow-gcp repository
+    Given I am pushing to the vibeacademy/gembaflow-gcp repository
     When I push changes to the main branch
     Then the deploy workflow should not run
     And no deployment steps should execute

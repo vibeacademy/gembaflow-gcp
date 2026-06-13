@@ -31,7 +31,7 @@ def given_pushing_to_main(context):
     context["pushing_to_main"] = True
 
 
-@given("the repository is not the upstream template (vibeacademy/agile-flow-gcp)")
+@given("the repository is not the upstream template (vibeacademy/gembaflow-gcp)")
 def given_not_upstream_template(context):
     """Mock that this is not the upstream template repo."""
     context["is_fork"] = True
@@ -79,11 +79,11 @@ def given_no_project_id(context):
     context["has_project_id"] = False
 
 
-@given("I am pushing to the vibeacademy/agile-flow-gcp repository")
+@given("I am pushing to the vibeacademy/gembaflow-gcp repository")
 def given_upstream_repository(context):
     """Mock pushing to upstream template repository."""
     context["is_fork"] = False
-    context["repo_name"] = "vibeacademy/agile-flow-gcp"
+    context["repo_name"] = "vibeacademy/gembaflow-gcp"
 
 
 @given("all deployment secrets are configured")

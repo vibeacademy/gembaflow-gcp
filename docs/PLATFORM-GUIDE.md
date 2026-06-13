@@ -138,7 +138,7 @@ either system — just secret values.
 1. Facilitator's roster has bob's row with `github_full_repo=acme/widget-shop` (or empty, defaulting to `bob-gh/gembaflow-gcp` for personal forks).
 2. Facilitator runs `provision-workshop-roster.sh` → `af-bob-2026-05` exists with the deployer SA, and Step 5.5 binds the WIF trust to whatever GitHub repo bob's row specified.
 3. Facilitator emails bob the four secret values. (Template in `agile-flow-meta/docs/workshops/gcp-facilitator-runbook.md` §7.)
-4. Bob forks `vibeacademy/agile-flow-gcp` (to his account or his org), pastes the four secrets, pushes a trivial change to `main`. The deploy workflow uses WIF to assume the deployer SA and ships the container to bob's project.
+4. Bob forks `vibeacademy/gembaflow-gcp` (to his account or his org), pastes the four secrets, pushes a trivial change to `main`. The deploy workflow uses WIF to assume the deployer SA and ships the container to bob's project.
 
 **The most common participant footgun:** if the GitHub fork's owner/repo
 doesn't match what the roster said, WIF auth fails because the trust
@@ -894,7 +894,7 @@ doesn't need a workshop-style cap.
 
 > **This step provides alerts only.** Auto-cutoff (disabling billing on
 > threshold breach) is tracked separately at
-> [#42](https://github.com/vibeacademy/agile-flow-gcp/issues/42) and is
+> [#42](https://github.com/vibeacademy/gembaflow-gcp/issues/42) and is
 > intentionally out of scope here. For the May 2026 workshop's blast
 > radius (≤8 projects × $25 = ~$200 worst case), facilitator monitoring
 > is sufficient.
@@ -998,13 +998,13 @@ Override the service name with `CLOUD_RUN_SERVICE=<name>`; defaults to
 
 - Workload Identity Federation setup — currently manual per project
   (see "Step 5: Workload Identity Federation" above), or track ticket
-  [#5](https://github.com/vibeacademy/agile-flow-gcp/issues/5).
+  [#5](https://github.com/vibeacademy/gembaflow-gcp/issues/5).
 - Budget auto-cutoff (Cloud Function disabling billing on threshold
-  breach) — see [#42](https://github.com/vibeacademy/agile-flow-gcp/issues/42).
+  breach) — see [#42](https://github.com/vibeacademy/gembaflow-gcp/issues/42).
   Email alerts at 50/90/100% are wired up via Step 5.6 above.
 - Org-policy override for `iam.allowedPolicyMemberDomains` — currently
   manual per project (see [`PATTERN-LIBRARY.md` pattern #30](./PATTERN-LIBRARY.md)),
-  or track ticket [#19](https://github.com/vibeacademy/agile-flow-gcp/issues/19).
+  or track ticket [#19](https://github.com/vibeacademy/gembaflow-gcp/issues/19).
 - Notification emails to participants — facilitator runbook in
   `agile-flow-meta` documents the email template.
 

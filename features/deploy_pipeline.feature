@@ -59,7 +59,7 @@ Feature: Deploy Pipeline
     And I should see setup instructions reference
 
   Scenario: Skip deployment on upstream repository
-    Given I am working on "vibeacademy/agile-flow-gcp" repository
+    Given I am working on "vibeacademy/gembaflow-gcp" repository
     When I push to the main branch
     Then the deploy workflow should not run
     And no deployment attempt should be made

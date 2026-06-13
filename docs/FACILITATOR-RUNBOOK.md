@@ -239,7 +239,7 @@ vibeacademy/agile-flow                (release published)
         │  scripts/pull-upstream.sh   (§§1–4 above)
         │  Honors .gembaflow-overrides
         ▼
-vibeacademy/agile-flow-gcp            (GCP edition, this repo)
+vibeacademy/gembaflow-gcp            (GCP edition, this repo)
         │
         │  Participant forks the GCP edition at some point in time.
         │  After that, the two hops are independent.
@@ -250,7 +250,7 @@ vibeacademy/agile-flow-gcp            (GCP edition, this repo)
         │  scripts/template-sync.sh via /upgrade  (§5 above)
         │  Does NOT honor .gembaflow-overrides
         │  Pulls from vibeacademy/agile-flow, NOT from
-        │  vibeacademy/agile-flow-gcp
+        │  vibeacademy/gembaflow-gcp
         │
 vibeacademy/agile-flow                (release tarball — same source!)
 ```
@@ -258,7 +258,7 @@ vibeacademy/agile-flow                (release tarball — same source!)
 The key thing: **hop 2 bypasses the GCP edition entirely.** A participant
 running `/upgrade` reaches back to `vibeacademy/agile-flow` directly,
 because that is the upstream hard-coded into `scripts/template-sync.sh`.
-Hop 2 does not transit through `vibeacademy/agile-flow-gcp`.
+Hop 2 does not transit through `vibeacademy/gembaflow-gcp`.
 
 ### What this means in practice
 
@@ -274,7 +274,7 @@ Hop 2 does not transit through `vibeacademy/agile-flow-gcp`.
   (hop 1).
 - The "merge it in `agile-flow-gcp` and ask participants to pull" path
   works only if participants do a `git pull` from `origin` (their fork
-  tracking `vibeacademy/agile-flow-gcp` via a remote you set up), not via
+  tracking `vibeacademy/gembaflow-gcp` via a remote you set up), not via
   `/upgrade`.
 
 ### Picking the right hop
@@ -307,8 +307,8 @@ behaviour, but the docs must describe the world as it is. If your
 workshop depends on participants having the GCP-customised agent
 prompts, they need to either:
 
-- Re-fork from `vibeacademy/agile-flow-gcp` after you push changes, or
-- Pull from a remote that points at `vibeacademy/agile-flow-gcp` rather
+- Re-fork from `vibeacademy/gembaflow-gcp` after you push changes, or
+- Pull from a remote that points at `vibeacademy/gembaflow-gcp` rather
   than relying on `/upgrade`.
 
 ### `/upgrade` does not honor `.gembaflow-overrides`
