@@ -11,7 +11,7 @@ permissions:
 jobs:
   cleanup:
     name: Cleanup Preview Resources
-    if: github.repository != 'vibeacademy/agile-flow-gcp'
+    if: github.repository != 'vibeacademy/gembaflow-gcp'
     runs-on: ubuntu-latest
 
     env:

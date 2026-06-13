@@ -12,13 +12,13 @@ permissions:
 jobs:
   ci:
     name: CI Checks
-    if: github.repository != 'vibeacademy/agile-flow-gcp'
+    if: github.repository != 'vibeacademy/gembaflow-gcp'
     uses: ./.github/workflows/ci.yml
 
   deploy-preview:
     name: Deploy PR Preview to Cloud Run
     needs: [ci]
-    if: github.repository != 'vibeacademy/agile-flow-gcp' && needs.ci.result == 'success'
+    if: github.repository != 'vibeacademy/gembaflow-gcp' && needs.ci.result == 'success'
     runs-on: ubuntu-latest
 
     env:
