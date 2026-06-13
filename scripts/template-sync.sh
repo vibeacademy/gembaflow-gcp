@@ -58,17 +58,8 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
-# Dual-read for the dotfile rename. Prefer the new name; fall back to the
-# legacy name for one release cycle so forks that have not yet run the
-# migration above continue to function. Cleanup ticket follows in a later PR.
 VERSION_FILE=".gembaflow-version"
-if [ ! -f "$VERSION_FILE" ] && [ -f ".agile-flow-version" ]; then
-  VERSION_FILE=".agile-flow-version"
-fi
 OVERRIDES_FILE=".gembaflow-overrides"
-if [ ! -f "$OVERRIDES_FILE" ] && [ -f ".agile-flow-overrides" ]; then
-  OVERRIDES_FILE=".agile-flow-overrides"
-fi
 RUNNING_SCRIPT_REL=$(python3 -c "import os,sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.getcwd()))" "$0")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -134,6 +125,89 @@ path_allowed_for_bootstrap_reentry() {
   done <<< "$SYNC_DIRS"
 
   return 1
+}
+
+###############################################################################
+# Hybrid agent file handling (#363)
+#
+# `.claude/agents/*.md` is classified as hybrid in docs/DISTRIBUTION.md:
+# framework persona + restrictions live between `<!-- FRAMEWORK:START -->` and
+# `<!-- FRAMEWORK:END -->` markers; project-specific specialization written by
+# `/bootstrap-agents` lives outside those markers. The sync must only update
+# content between the markers and must preserve user content outside them.
+#
+# Behavior matrix:
+#   - upstream has markers, local has markers      -> swap framework section
+#   - upstream has markers, local lacks markers    -> WARN, preserve local file
+#     (treat legacy file as fully user-owned; user runs /bootstrap-agents to
+#     re-establish markers, OR they can pull the framework section from the
+#     diff manually)
+#   - upstream lacks markers (shouldn't happen)    -> WARN, fall through to
+#     regular overwrite (treats as pure framework)
+###############################################################################
+is_hybrid_agent_path() {
+  local path="$1"
+  local normalized_path
+  normalized_path="$(normalize_rel_path "$path")"
+  case "$normalized_path" in
+    .claude/agents/*.md)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+file_has_framework_markers() {
+  # Returns 0 if file contains BOTH start and end markers, in that order.
+  local path="$1"
+  [ -f "$path" ] || return 1
+  grep -q '<!-- FRAMEWORK:START -->' "$path" || return 1
+  grep -q '<!-- FRAMEWORK:END -->' "$path" || return 1
+  # Ensure START appears before END (line numbers).
+  local start_line end_line
+  start_line=$(grep -n '<!-- FRAMEWORK:START -->' "$path" | head -1 | cut -d: -f1)
+  end_line=$(grep -n '<!-- FRAMEWORK:END -->' "$path" | head -1 | cut -d: -f1)
+  [ -n "$start_line" ] && [ -n "$end_line" ] && [ "$start_line" -lt "$end_line" ]
+}
+
+# Replace the framework section in $local_file with the framework section
+# from $upstream_file. Content outside the markers in $local_file is preserved
+# byte-for-byte. Both files MUST contain the markers; callers must check first.
+merge_hybrid_agent_file() {
+  local upstream_file="$1"
+  local local_file="$2"
+  python3 - "$upstream_file" "$local_file" <<'PY'
+import sys, re
+
+upstream_path, local_path = sys.argv[1], sys.argv[2]
+START = "<!-- FRAMEWORK:START -->"
+END = "<!-- FRAMEWORK:END -->"
+
+with open(upstream_path, "r") as f:
+    upstream = f.read()
+with open(local_path, "r") as f:
+    local = f.read()
+
+# Extract upstream framework section (including markers).
+def extract(text, path):
+    s = text.find(START)
+    e = text.find(END)
+    if s == -1 or e == -1 or e < s:
+        sys.stderr.write(f"ERROR: missing FRAMEWORK markers in {path}\n")
+        sys.exit(2)
+    return text[s : e + len(END)]
+
+up_section = extract(upstream, upstream_path)
+loc_s = local.find(START)
+loc_e = local.find(END)
+if loc_s == -1 or loc_e == -1 or loc_e < loc_s:
+    sys.stderr.write(f"ERROR: missing FRAMEWORK markers in {local_path}\n")
+    sys.exit(2)
+
+merged = local[:loc_s] + up_section + local[loc_e + len(END):]
+with open(local_path, "w") as f:
+    f.write(merged)
+PY
 }
 
 is_user_content_path() {
@@ -205,8 +279,7 @@ dirs = json.load(open('$VERSION_FILE')).get('syncDirectories', [])
 print('\n'.join(dirs))
 ")
 
-# Read optional `upstream` field from .gembaflow-version (or the legacy
-# .agile-flow-version during the Phase 4 dual-read cycle). Accepts either a
+# Read optional `upstream` field from .gembaflow-version. Accepts either a
 # bare "owner/repo" string or a full GitHub URL; falls back to the hardcoded
 # UPSTREAM_REPO if the field is absent or empty. This lets downstream variant
 # forks point /upgrade at their own upstream without editing this script.
@@ -264,6 +337,40 @@ RELEASE_URL=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.loa
 TARBALL_URL=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['tarball_url'])")
 
 echo "Latest version: $LATEST_VERSION"
+
+###############################################################################
+# 2a. Fresh-fork placeholder short-circuit (#381)
+#
+# Every fresh fork starts at ".gembaflow-version" version "0.1.0" — the template
+# placeholder. If bootstrap.sh ran but couldn't set the version (e.g. network
+# failure on `gh release view`), installedAt is stamped but version stays at
+# "0.1.0". Without this short-circuit, every such fork's first /upgrade syncs
+# from "0.1.0" to the actual latest release tag, generating a no-op PR.
+#
+# Detect this case (placeholder version + installedAt stamped) and just bump
+# the version field locally — no PR, no churn. Legitimately-behind forks
+# (version like "1.2.0" with a real installedAt) fall through to normal sync.
+###############################################################################
+INSTALLED_AT=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('installedAt') or '')")
+if [ "$LOCAL_VERSION" = "0.1.0" ] && [ -n "$INSTALLED_AT" ]; then
+  echo "INFO: detected fresh-fork placeholder version; setting LOCAL_VERSION to latest without sync." >&2
+  if command -v jq >/dev/null 2>&1; then
+    jq --arg ver "$LATEST_VERSION" '.version = $ver' "$VERSION_FILE" > "$VERSION_FILE.tmp" \
+      && mv "$VERSION_FILE.tmp" "$VERSION_FILE"
+  else
+    python3 - <<PY
+import json
+with open("$VERSION_FILE") as f:
+    data = json.load(f)
+data["version"] = "$LATEST_VERSION"
+with open("$VERSION_FILE", "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
+  fi
+  echo "Already up to date (fresh-fork initialized to v${LATEST_VERSION})."
+  exit 0
+fi
 
 ###############################################################################
 # 3. Compare versions
@@ -358,6 +465,42 @@ echo "Created rollback tag: $ROLLBACK_TAG (local-only)"
 FILES_CHANGED=()
 FILES_SKIPPED_OVERRIDE=()
 FILES_SKIPPED_RUNTIME=()
+HYBRID_AGENTS_UPDATED=()       # .claude/agents/*.md with markers, framework section merged
+HYBRID_AGENTS_LEGACY_SKIPPED=() # .claude/agents/*.md without markers, preserved local
+
+# Mode-registry summary (#406). `.claude/modes/` is a fork-extensible registry —
+# upstream files are synced like any other directory, but fork-local files are
+# never touched (the find loop only iterates upstream files, so anything fork-
+# local is implicitly preserved). We surface the split explicitly in the sync
+# log so the maintainer can see at a glance which fork-local modes survived.
+modes_summary_log() {
+  local upstream_modes_dir="$1"
+  [ -d "$upstream_modes_dir" ] || return 0
+
+  local upstream_count
+  upstream_count=$(find "$upstream_modes_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+
+  local fork_local=()
+  if [ -d ".claude/modes" ]; then
+    while IFS= read -r local_file; do
+      [ -z "$local_file" ] && continue
+      local rel
+      rel="${local_file##*/}"
+      if [ ! -f "$upstream_modes_dir/$rel" ]; then
+        fork_local+=("${rel%.md}")
+      fi
+    done < <(find ".claude/modes" -maxdepth 1 -type f -name '*.md')
+  fi
+
+  if [ "${#fork_local[@]}" -eq 0 ]; then
+    echo "[modes] Syncing ${upstream_count} framework modes; 0 fork-local modes preserved."
+  else
+    local joined
+    joined=$(IFS=,; echo "${fork_local[*]}")
+    joined="${joined//,/, }"
+    echo "[modes] Syncing ${upstream_count} framework modes; ${#fork_local[@]} fork-local modes preserved: ${joined}."
+  fi
+}
 
 if [ "$BOOTSTRAP_REENTRY_MODE" -eq 1 ]; then
   while IFS= read -r changed_path; do
@@ -376,6 +519,10 @@ else
     fi
 
     if [ -d "$upstream_path" ]; then
+      # Friendly log line for the mode registry (#406).
+      if [ "$(normalize_rel_path "$sync_path")" = ".claude/modes" ]; then
+        modes_summary_log "$upstream_path"
+      fi
       # Directory sync: iterate over each file in the upstream directory
       while IFS= read -r file; do
         rel_file="${file#"$upstream_path"/}"
@@ -404,10 +551,34 @@ else
 
         if [ -f "$local_file" ]; then
           if ! diff -q "$upstream_file" "$local_file" >/dev/null 2>&1; then
-            cp "$upstream_file" "$local_file"
-            git add "$local_file"
-            FILES_CHANGED+=("$local_file")
-            echo "UPDATED: $local_file"
+            if is_hybrid_agent_path "$local_file"; then
+              # Hybrid agent file (#363): only update the FRAMEWORK section.
+              if file_has_framework_markers "$local_file" && file_has_framework_markers "$upstream_file"; then
+                if merge_hybrid_agent_file "$upstream_file" "$local_file"; then
+                  # If the merge produced no diff vs. the prior local file,
+                  # there's nothing to commit. Otherwise stage.
+                  if ! git diff --quiet -- "$local_file" 2>/dev/null; then
+                    git add "$local_file"
+                    FILES_CHANGED+=("$local_file")
+                    HYBRID_AGENTS_UPDATED+=("$local_file")
+                    echo "UPDATED (hybrid framework section): $local_file"
+                  else
+                    echo "UNCHANGED (hybrid framework section identical): $local_file"
+                  fi
+                else
+                  echo "WARNING: hybrid merge failed for $local_file; preserving local file untouched." >&2
+                fi
+              else
+                # Legacy or malformed: preserve local entirely; warn loudly.
+                echo "WARNING: $local_file lacks <!-- FRAMEWORK:START/END --> markers; preserving local file. Run /bootstrap-agents to migrate." >&2
+                HYBRID_AGENTS_LEGACY_SKIPPED+=("$local_file")
+              fi
+            else
+              cp "$upstream_file" "$local_file"
+              git add "$local_file"
+              FILES_CHANGED+=("$local_file")
+              echo "UPDATED: $local_file"
+            fi
           fi
         else
           cp "$upstream_file" "$local_file"
@@ -437,10 +608,30 @@ else
 
       if [ -f "$sync_path" ]; then
         if ! diff -q "$upstream_path" "$sync_path" >/dev/null 2>&1; then
-          cp "$upstream_path" "$sync_path"
-          git add "$sync_path"
-          FILES_CHANGED+=("$sync_path")
-          echo "UPDATED: $sync_path"
+          if is_hybrid_agent_path "$sync_path"; then
+            if file_has_framework_markers "$sync_path" && file_has_framework_markers "$upstream_path"; then
+              if merge_hybrid_agent_file "$upstream_path" "$sync_path"; then
+                if ! git diff --quiet -- "$sync_path" 2>/dev/null; then
+                  git add "$sync_path"
+                  FILES_CHANGED+=("$sync_path")
+                  HYBRID_AGENTS_UPDATED+=("$sync_path")
+                  echo "UPDATED (hybrid framework section): $sync_path"
+                else
+                  echo "UNCHANGED (hybrid framework section identical): $sync_path"
+                fi
+              else
+                echo "WARNING: hybrid merge failed for $sync_path; preserving local file untouched." >&2
+              fi
+            else
+              echo "WARNING: $sync_path lacks <!-- FRAMEWORK:START/END --> markers; preserving local file. Run /bootstrap-agents to migrate." >&2
+              HYBRID_AGENTS_LEGACY_SKIPPED+=("$sync_path")
+            fi
+          else
+            cp "$upstream_path" "$sync_path"
+            git add "$sync_path"
+            FILES_CHANGED+=("$sync_path")
+            echo "UPDATED: $sync_path"
+          fi
         fi
       else
         mkdir -p "$(dirname "$sync_path")"
@@ -459,6 +650,70 @@ fi
 
 if [ "${#FILES_SKIPPED_RUNTIME[@]}" -gt 0 ]; then
   echo "Skipped ${#FILES_SKIPPED_RUNTIME[@]} runtime-protected file(s)."
+fi
+
+###############################################################################
+# 7.5. Self-healing post-sync refresh of runtime-protected files (#371)
+###############################################################################
+# The main sync loop above skips runtime-protected files (template-sync.sh and
+# scripts/lib/overrides.sh) — correctly, because the running script cannot
+# safely overwrite itself mid-execution. But that means bug fixes to those
+# files never reach forks via the normal sync path.
+#
+# This post-loop block closes the gap. By the time we get here:
+#   - The sync loop is finished — the currently-running script's main work is
+#     done. The script process is still in memory; the next /upgrade
+#     invocation is what reads the on-disk file.
+#   - $EXTRACTED_DIR still holds the release tarball's contents (cleanup
+#     happens after this block).
+#
+# For each path in RUNTIME_PROTECTED_PATHS, compare the local file's content
+# to the tarball version. If different AND the path is not in
+# .gembaflow-overrides, copy the tarball version over the local file and stage
+# it. The change rides the same sync PR; the operator reviews and merges
+# normally. The next /upgrade reads the refreshed file.
+
+RUNTIME_REFRESHED=()
+
+for protected in "${RUNTIME_PROTECTED_PATHS[@]}"; do
+  normalized_protected="$(normalize_rel_path "$protected")"
+
+  # Respect operator's explicit override choice: if the fork has added this
+  # path to .gembaflow-overrides, the operator wants their local divergence
+  # preserved across sync. Don't refresh.
+  if is_override "$normalized_protected"; then
+    echo "SKIP refresh (override): $normalized_protected"
+    continue
+  fi
+
+  tarball_file="$EXTRACTED_DIR/$normalized_protected"
+  if [ ! -f "$tarball_file" ]; then
+    # Upstream tarball doesn't contain the file — unusual but bail safely.
+    continue
+  fi
+
+  if [ ! -f "$normalized_protected" ]; then
+    # Local file is missing; refresh = add.
+    mkdir -p "$(dirname "$normalized_protected")"
+    cp "$tarball_file" "$normalized_protected"
+    git add "$normalized_protected" 2>/dev/null || true
+    RUNTIME_REFRESHED+=("$normalized_protected")
+    FILES_CHANGED+=("$normalized_protected")
+    echo "REFRESHED (post-run, added): $normalized_protected"
+    continue
+  fi
+
+  if ! diff -q "$tarball_file" "$normalized_protected" >/dev/null 2>&1; then
+    cp "$tarball_file" "$normalized_protected"
+    git add "$normalized_protected" 2>/dev/null || true
+    RUNTIME_REFRESHED+=("$normalized_protected")
+    FILES_CHANGED+=("$normalized_protected")
+    echo "REFRESHED (post-run): $normalized_protected"
+  fi
+done
+
+if [ "${#RUNTIME_REFRESHED[@]}" -gt 0 ]; then
+  echo "Refreshed ${#RUNTIME_REFRESHED[@]} runtime-protected file(s) post-run. The on-disk versions are now current; the next /upgrade will read the refreshed code."
 fi
 
 ###############################################################################
@@ -481,9 +736,7 @@ fi
 
 git checkout -b "$SYNC_BRANCH"
 
-# Update the version manifest ($VERSION_FILE may be .gembaflow-version or, in
-# the dual-read fallback window, the legacy .agile-flow-version) with the new
-# version.
+# Update the version manifest with the new version.
 python3 -c "
 import json
 with open('$VERSION_FILE', 'r') as f:
@@ -495,17 +748,47 @@ with open('$VERSION_FILE', 'w') as f:
 "
 git add "$VERSION_FILE"
 
-# Write the meta-dir version stamp. Prefer the new .gembaflow-meta/ name; if
-# the legacy directory still exists alongside (shouldn't, given the migration
-# step above, but defensive), write to the new one and let the migration tidy
-# up on the next run.
+# Write the meta-dir version stamp.
 META_DIR=".gembaflow-meta"
-if [ ! -d "$META_DIR" ] && [ -d ".agile-flow-meta" ]; then
-  META_DIR=".agile-flow-meta"
-fi
 mkdir -p "$META_DIR"
 echo "$LATEST_VERSION" > "$META_DIR/version"
 git add "$META_DIR/version"
+
+# Bump package.json "version" to match the new framework release. The downstream
+# CI job (validate-version-parity.sh) requires .gembaflow-version and
+# package.json to agree; without this, every sync PR lands with red CI. See
+# vibeacademy/gembaflow#361. Idempotent: no-op when versions already match.
+# Skipped on non-Node forks (no package.json at repo root).
+if [ -f package.json ]; then
+  CURRENT_PKG_VERSION=""
+  if command -v jq >/dev/null 2>&1; then
+    CURRENT_PKG_VERSION=$(jq -r '.version // empty' package.json)
+  else
+    CURRENT_PKG_VERSION=$(python3 -c "import json; print(json.load(open('package.json')).get('version', ''))")
+  fi
+
+  if [ "$CURRENT_PKG_VERSION" != "$LATEST_VERSION" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      TMP_PKG=$(mktemp)
+      jq --arg v "$LATEST_VERSION" '.version = $v' package.json > "$TMP_PKG"
+      mv "$TMP_PKG" package.json
+    else
+      python3 -c "
+import json
+with open('package.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$LATEST_VERSION'
+with open('package.json', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\\n')
+"
+    fi
+    git add package.json
+    echo "UPDATED: package.json version -> $LATEST_VERSION"
+  else
+    echo "OK: package.json version already $LATEST_VERSION (no-op)"
+  fi
+fi
 
 COMMIT_MSG="chore(sync): update Gemba Flow framework to v${LATEST_VERSION}"
 # Scope the bot identity to this single commit using -c so running locally
@@ -522,13 +805,55 @@ for f in "${FILES_CHANGED[@]}"; do
 "
 done
 
+# Build hybrid-agent warning section for PR body (#363).
+HYBRID_SECTION=""
+if [ "${#HYBRID_AGENTS_UPDATED[@]}" -gt 0 ]; then
+  HYBRID_LIST=""
+  for f in "${HYBRID_AGENTS_UPDATED[@]}"; do
+    HYBRID_LIST="${HYBRID_LIST}  - \`${f}\`
+"
+  done
+  HYBRID_SECTION="${HYBRID_SECTION}
+> [!IMPORTANT]
+> Hybrid agent files updated (framework section only):
+${HYBRID_LIST}> User content outside \`<!-- FRAMEWORK:START -->\` / \`<!-- FRAMEWORK:END -->\` markers was preserved. Review the diff to confirm your \`/bootstrap-agents\` specialization is intact.
+"
+fi
+if [ "${#HYBRID_AGENTS_LEGACY_SKIPPED[@]}" -gt 0 ]; then
+  LEGACY_LIST=""
+  for f in "${HYBRID_AGENTS_LEGACY_SKIPPED[@]}"; do
+    LEGACY_LIST="${LEGACY_LIST}  - \`${f}\`
+"
+  done
+  HYBRID_SECTION="${HYBRID_SECTION}
+> [!WARNING]
+> Legacy agent files (no FRAMEWORK markers) were left untouched and may be out of date:
+${LEGACY_LIST}> Run \`/bootstrap-agents\` to re-establish markers and re-apply your project specialization, then re-run \`/upgrade\` to pick up the latest framework persona.
+"
+fi
+
+# Build runtime-protected refresh section for PR body (#371).
+RUNTIME_REFRESH_SECTION=""
+if [ "${#RUNTIME_REFRESHED[@]}" -gt 0 ]; then
+  REFRESH_LIST=""
+  for f in "${RUNTIME_REFRESHED[@]}"; do
+    REFRESH_LIST="${REFRESH_LIST}  - \`${f}\`
+"
+  done
+  RUNTIME_REFRESH_SECTION="
+> [!IMPORTANT]
+> Runtime-protected files refreshed (post-run):
+${REFRESH_LIST}> These files are skipped during the main sync loop because the running script cannot overwrite itself mid-execution. The post-run refresh re-copies them after the loop completes, so the next \`/upgrade\` invocation reads the current code. The currently-running script process is unaffected — only the on-disk file is updated. Review the diff before merging.
+"
+fi
+
 PR_BODY="## Gemba Flow Framework Update
 
 Updates framework files from \`v${LOCAL_VERSION}\` to \`v${LATEST_VERSION}\`.
 
 ### Updated files
 
-${FILE_LIST}
+${FILE_LIST}${HYBRID_SECTION}${RUNTIME_REFRESH_SECTION}
 ### Release notes
 
 See the full release notes: ${RELEASE_URL}
