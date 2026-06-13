@@ -1,7 +1,7 @@
 <!-- FRAMEWORK:START -->
 # Agile Flow (GCP Edition)
 
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](.gembaflow-version) [![Use this template](https://img.shields.io/badge/Use_this-template-2ea44f)](https://github.com/vibeacademy/agile-flow-gcp/generate) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/vibeacademy/agile-flow-gcp)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](.gembaflow-version) [![Use this template](https://img.shields.io/badge/Use_this-template-2ea44f)](https://github.com/vibeacademy/gembaflow-gcp/generate) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/vibeacademy/gembaflow-gcp)
 
 A Claude Code project template that bootstraps a complete agile development workflow with specialized AI agents, **configured for Google Cloud Platform**.
 
@@ -421,7 +421,7 @@ This is a template project. To contribute:
 ### Maintainers: cutting releases
 
 Workshop participants on the GCP track consume framework updates from
-`vibeacademy/agile-flow-gcp` releases via `/upgrade`. The
+`vibeacademy/gembaflow-gcp` releases via `/upgrade`. The
 DevOps Engineer (GCP) owns the release process. See
 [`docs/RELEASE-PROCESS.md`](./docs/RELEASE-PROCESS.md) for the cadence
 policy, pre-publish checklist, and exact commands.
