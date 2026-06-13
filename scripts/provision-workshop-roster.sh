@@ -48,7 +48,7 @@
 #                        When unset (default), the wrapper assumes attendee
 #                        forks already exist on personal accounts (legacy
 #                        behavior).
-#   WORKSHOP_TEMPLATE_REPO (default: vibeacademy/agile-flow-gcp) The template
+#   WORKSHOP_TEMPLATE_REPO (default: vibeacademy/gembaflow-gcp) The template
 #                        repo `gh repo create --template` uses when
 #                        WORKSHOP_ORG is set. Override for non-vibeacademy
 #                        forks of the framework.
@@ -113,7 +113,7 @@ OUTPUT_CSV="${OUTPUT_CSV:-roster-output.csv}"
 ROSTER_CSV=""
 FORCE_SHARED_PARENT="${NEON_FORCE_SHARED_PARENT:-false}"
 WORKSHOP_ORG="${WORKSHOP_ORG:-}"
-WORKSHOP_TEMPLATE_REPO="${WORKSHOP_TEMPLATE_REPO:-vibeacademy/agile-flow-gcp}"
+WORKSHOP_TEMPLATE_REPO="${WORKSHOP_TEMPLATE_REPO:-vibeacademy/gembaflow-gcp}"
 GH_REPO_CREATE="${GH_REPO_CREATE:-gh}"
 
 while [[ $# -gt 0 ]]; do
